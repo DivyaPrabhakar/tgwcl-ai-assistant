@@ -1,4 +1,19 @@
-// server.js
+// server.js - Complete working version with debug logging
+console.log("🚀 Server startup initiated...");
+
+// Add error handling for uncaught exceptions
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
+});
+
+console.log("🔧 Loading modules...");
+
 const express = require("express");
 const cors = require("cors");
 const Airtable = require("airtable");
@@ -7,16 +22,37 @@ const fs = require("fs").promises;
 const path = require("path");
 require("dotenv").config();
 
+console.log("✅ All modules loaded successfully");
+
+// Check environment variables
+console.log("📋 Environment check:");
+console.log("- NODE_ENV:", process.env.NODE_ENV || "not set");
+console.log("- PORT:", process.env.PORT || "not set (will use 3001)");
+console.log(
+  "- AIRTABLE_API_KEY:",
+  process.env.AIRTABLE_API_KEY ? "✅ Set" : "❌ Missing"
+);
+console.log(
+  "- OPENAI_API_KEY:",
+  process.env.OPENAI_API_KEY ? "✅ Set" : "❌ Missing"
+);
+
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+console.log("✅ Express app created");
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
+console.log("✅ Middleware configured");
+
 // Data persistence configuration
 const DATA_DIR = path.join(__dirname, "cached_data");
-const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days instead of 30 minutes
+const CACHE_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+console.log("✅ Constants defined");
 
 // In-memory cache
 const cache = {
@@ -29,7 +65,9 @@ const cache = {
   avoids: { data: null, timestamp: null, lastRecordId: null },
 };
 
-// Ensure data directory exists
+console.log("✅ Cache object created");
+
+// Utility functions
 async function ensureDataDir() {
   try {
     await fs.mkdir(DATA_DIR, { recursive: true });
@@ -38,7 +76,6 @@ async function ensureDataDir() {
   }
 }
 
-// Load cached data from file
 async function loadFromFile(key) {
   try {
     const filePath = path.join(DATA_DIR, `${key}.json`);
@@ -52,7 +89,6 @@ async function loadFromFile(key) {
   }
 }
 
-// Save data to file
 async function saveToFile(key, cacheEntry) {
   try {
     const filePath = path.join(DATA_DIR, `${key}.json`);
@@ -63,13 +99,11 @@ async function saveToFile(key, cacheEntry) {
   }
 }
 
-// Check if cache is valid (7 days instead of 30 minutes)
 function isCacheValid(cacheEntry) {
   if (!cacheEntry.data || !cacheEntry.timestamp) return false;
   return Date.now() - cacheEntry.timestamp < CACHE_EXPIRY;
 }
 
-// Update cache and save to file
 async function updateCache(key, data, lastRecordId = null) {
   cache[key] = {
     data: data,
@@ -81,7 +115,6 @@ async function updateCache(key, data, lastRecordId = null) {
   console.log(`Cache updated for ${key}: ${data.length} records`);
 }
 
-// Load all cached data from files on startup
 async function loadAllCachedData() {
   console.log("Loading cached data from files...");
   for (const key of Object.keys(cache)) {
@@ -89,7 +122,9 @@ async function loadAllCachedData() {
   }
 }
 
-// Initialize Airtable bases (only if API key is provided)
+console.log("✅ Utility functions defined");
+
+// Initialize Airtable bases
 let airtable, closetBase, referencesBase, finishedBase;
 if (process.env.AIRTABLE_API_KEY) {
   airtable = new Airtable({
@@ -100,7 +135,9 @@ if (process.env.AIRTABLE_API_KEY) {
   finishedBase = airtable.base(process.env.AIRTABLE_FINISHED_BASE_ID);
 }
 
-// Initialize OpenAI (only if API key is provided)
+console.log("✅ Airtable configured");
+
+// Initialize OpenAI
 let openai;
 if (process.env.OPENAI_API_KEY) {
   openai = new OpenAI({
@@ -108,7 +145,9 @@ if (process.env.OPENAI_API_KEY) {
   });
 }
 
-// Airtable service functions
+console.log("✅ OpenAI configured");
+
+// Wardrobe Service
 class WardrobeService {
   async fetchIncrementally(
     base,
@@ -122,7 +161,6 @@ class WardrobeService {
       return cache[cacheKey].data || [];
     }
 
-    // Prevent simultaneous fetches
     if (cache[cacheKey].fetching) {
       console.log(`Already fetching ${tableName}, returning cached data`);
       return cache[cacheKey].data || [];
@@ -135,25 +173,17 @@ class WardrobeService {
       const lastRecordId = cache[cacheKey].lastRecordId;
 
       console.log(
-        `Fetching ${tableName} incrementally... (${existingData.length} existing records, lastRecordId: ${lastRecordId})`
+        `Fetching ${tableName} incrementally... (${existingData.length} existing records)`
       );
 
       const selectOptions = {};
-      if (view) {
-        selectOptions.view = view;
-      }
-      if (sortField) {
+      if (view) selectOptions.view = view;
+      if (sortField)
         selectOptions.sort = [{ field: sortField, direction: "desc" }];
-      }
 
       let allRecords = [];
       let pageCount = 0;
-      const maxPages = 50; // Safety limit
-
-      console.log(
-        `Starting to fetch ${tableName} with options:`,
-        selectOptions
-      );
+      const maxPages = 50;
 
       await base(tableName)
         .select(selectOptions)
@@ -163,7 +193,6 @@ class WardrobeService {
             `Processing page ${pageCount} with ${pageRecords.length} records for ${tableName}`
           );
 
-          // If this is the first fetch (no lastRecordId), get all records
           if (!lastRecordId) {
             for (const record of pageRecords) {
               allRecords.push({
@@ -172,46 +201,24 @@ class WardrobeService {
                 ...record.fields,
               });
             }
-
-            // Continue to next page if we haven't hit our safety limit
-            if (pageCount < maxPages) {
-              fetchNextPage();
-            } else {
-              console.log(`Hit page limit for ${tableName}, stopping`);
-            }
+            if (pageCount < maxPages) fetchNextPage();
           } else {
-            // If we have a lastRecordId, look for new records
             let foundLastRecord = false;
-
             for (const record of pageRecords) {
               if (record.id === lastRecordId) {
                 foundLastRecord = true;
-                console.log(
-                  `Found last record ${lastRecordId} for ${tableName}, stopping`
-                );
                 break;
               }
-
-              // This is a new record
               allRecords.push({
                 id: record.id,
                 status: cacheKey.includes("inactive") ? "inactive" : "active",
                 ...record.fields,
               });
             }
-
-            if (!foundLastRecord && pageCount < maxPages) {
-              fetchNextPage();
-            } else {
-              console.log(
-                `Stopping fetch for ${tableName}. Found last record: ${foundLastRecord}, Page: ${pageCount}`
-              );
-            }
+            if (!foundLastRecord && pageCount < maxPages) fetchNextPage();
           }
         });
 
-      // For first fetch, use all new records
-      // For incremental, combine new records with existing
       const finalRecords = lastRecordId
         ? [...allRecords, ...existingData]
         : allRecords;
@@ -219,27 +226,9 @@ class WardrobeService {
         finalRecords.length > 0 ? finalRecords[0].id : lastRecordId;
 
       await updateCache(cacheKey, finalRecords, newLastRecordId);
-      console.log(
-        `Successfully fetched ${allRecords.length} ${
-          lastRecordId ? "new" : "total"
-        } ${tableName} records`
-      );
-
       return finalRecords;
     } catch (error) {
       console.error(`Error fetching ${tableName}:`, error.message);
-      console.error(`Full error:`, error);
-      if (
-        error.message &&
-        (error.message.includes("quota") ||
-          error.message.includes("rate limit"))
-      ) {
-        console.log(
-          `Quota/rate limit hit while fetching ${tableName}, using existing data`
-        );
-        return cache[cacheKey].data || [];
-      }
-      console.log(`Unknown error for ${tableName}, using existing data`);
       return cache[cacheKey].data || [];
     } finally {
       cache[cacheKey].fetching = false;
@@ -255,7 +244,6 @@ class WardrobeService {
       console.log("Returning cached items");
       return cache.items.data;
     }
-
     return await this.fetchIncrementally(
       closetBase,
       "Items",
@@ -273,7 +261,6 @@ class WardrobeService {
       console.log("Returning cached inactive items");
       return cache.inactiveItems.data;
     }
-
     return await this.fetchIncrementally(
       finishedBase,
       "Inactive items",
@@ -298,7 +285,6 @@ class WardrobeService {
       console.log("Returning cached outfits");
       return cache.outfits.data;
     }
-
     return await this.fetchIncrementally(
       closetBase,
       "Outfits",
@@ -318,21 +304,15 @@ class WardrobeService {
       return cache.usageLog.data;
     }
 
-    // Try different possible configurations for your Usage Log table
     const possibleConfigs = [
       { table: "Usage Log", view: "Detailed view", sort: "date_worn" },
       { table: "Usage Log", view: "Grid view", sort: "date_worn" },
-      { table: "Usage Log", view: "All records", sort: "date_worn" },
-      { table: "Usage Log", view: "Detailed view", sort: "Date" },
-      { table: "Usage Log", view: "Grid view", sort: "Date" },
-      { table: "Usage Log", sort: "date_worn" }, // No view specified
-      { table: "Usage Log", sort: "Date" }, // No view specified
-      { table: "Usage Log" }, // No view or sort
+      { table: "Usage Log", sort: "date_worn" },
+      { table: "Usage Log" },
     ];
 
     for (const config of possibleConfigs) {
       try {
-        console.log(`Trying Usage Log config:`, config);
         return await this.fetchIncrementally(
           closetBase,
           config.table,
@@ -341,16 +321,10 @@ class WardrobeService {
           config.sort
         );
       } catch (error) {
-        console.log(
-          `Config failed: ${config.view || "no view"} with ${
-            config.sort || "no sort"
-          }: ${error.message}`
-        );
+        console.log(`Config failed: ${error.message}`);
         continue;
       }
     }
-
-    console.error("All Usage Log configurations failed, returning empty array");
     return [];
   }
 
@@ -360,10 +334,8 @@ class WardrobeService {
       isCacheValid(cache.inspiration) &&
       cache.inspiration.data?.length > 0
     ) {
-      console.log("Returning cached inspiration");
       return cache.inspiration.data;
     }
-
     return await this.fetchIncrementally(
       referencesBase,
       "Inspiration",
@@ -377,10 +349,8 @@ class WardrobeService {
       isCacheValid(cache.shoppingList) &&
       cache.shoppingList.data?.length > 0
     ) {
-      console.log("Returning cached shopping list");
       return cache.shoppingList.data;
     }
-
     return await this.fetchIncrementally(
       referencesBase,
       "Shopping list",
@@ -394,72 +364,9 @@ class WardrobeService {
       isCacheValid(cache.avoids) &&
       cache.avoids.data?.length > 0
     ) {
-      console.log("Returning cached avoids");
       return cache.avoids.data;
     }
-
     return await this.fetchIncrementally(referencesBase, "Avoids", "avoids");
-  }
-
-  async analyzeUsagePatterns(forceRefresh = false) {
-    const [activeItems, inactiveItems, outfits, usageLog] = await Promise.all([
-      this.getItems(forceRefresh),
-      this.getInactiveItems(forceRefresh),
-      this.getOutfits(forceRefresh),
-      this.getUsageLog(forceRefresh),
-    ]);
-
-    // Create usage analytics
-    const itemUsage = {};
-    const seasonalTrends = {};
-    const occasionTrends = {};
-
-    // Analyze usage log
-    usageLog.forEach((record) => {
-      if (record["Item"]) {
-        const itemKey = Array.isArray(record["Item"])
-          ? record["Item"][0]
-          : record["Item"];
-        itemUsage[itemKey] = (itemUsage[itemKey] || 0) + 1;
-      }
-
-      // Seasonal analysis
-      if (record.Date) {
-        const month = new Date(record.Date).getMonth();
-        const season = this.getSeason(month);
-        seasonalTrends[season] = (seasonalTrends[season] || 0) + 1;
-      }
-
-      // Occasion analysis
-      if (record.Occasion) {
-        occasionTrends[record.Occasion] =
-          (occasionTrends[record.Occasion] || 0) + 1;
-      }
-    });
-
-    return {
-      totalActiveItems: activeItems.length,
-      totalInactiveItems: inactiveItems.length,
-      totalOutfits: outfits.length,
-      totalUsageEntries: usageLog.length,
-      mostWornItems: Object.entries(itemUsage)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 10)
-        .map(([itemKey, count]) => ({
-          item: itemKey,
-          usage: count,
-        })),
-      leastWornItems: Object.entries(itemUsage)
-        .sort(([, a], [, b]) => a - b)
-        .slice(0, 10)
-        .map(([itemKey, count]) => ({
-          item: itemKey,
-          usage: count,
-        })),
-      seasonalTrends,
-      occasionTrends,
-      inactiveItemsAnalysis: this.analyzeInactiveItems(inactiveItems),
-    };
   }
 
   getSeason(month) {
@@ -467,6 +374,48 @@ class WardrobeService {
     if (month >= 5 && month <= 7) return "Summer";
     if (month >= 8 && month <= 10) return "Fall";
     return "Winter";
+  }
+
+  analyzeDepartments(items) {
+    const departments = {};
+    items.forEach((item) => {
+      if (item.department) {
+        departments[item.department] = (departments[item.department] || 0) + 1;
+      }
+    });
+    return departments;
+  }
+
+  analyzePrices(items) {
+    const prices = items
+      .filter((item) => item.purchase_price && item.purchase_price > 0)
+      .map((item) => item.purchase_price);
+
+    if (prices.length === 0) return { average: 0, total: 0, count: 0 };
+
+    const total = prices.reduce((sum, price) => sum + price, 0);
+    const average = total / prices.length;
+    const sorted = prices.sort((a, b) => a - b);
+
+    return {
+      total,
+      average,
+      median: sorted[Math.floor(sorted.length / 2)],
+      count: prices.length,
+      min: Math.min(...prices),
+      max: Math.max(...prices),
+    };
+  }
+
+  analyzeUtilization(items) {
+    const utilizationStats = {};
+    items.forEach((item) => {
+      if (item.item_utilization) {
+        const util = item.item_utilization;
+        utilizationStats[util] = (utilizationStats[util] || 0) + 1;
+      }
+    });
+    return utilizationStats;
   }
 
   analyzeInactiveItems(inactiveItems) {
@@ -477,13 +426,152 @@ class WardrobeService {
       if (item["Reason"]) {
         reasons[item["Reason"]] = (reasons[item["Reason"]] || 0) + 1;
       }
-
       if (item["Category"]) {
         categories[item["Category"]] = (categories[item["Category"]] || 0) + 1;
       }
     });
 
     return { reasons, categories };
+  }
+
+  async analyzeUsagePatterns(forceRefresh = false) {
+    console.log("=== ANALYZE USAGE PATTERNS START ===");
+
+    const [activeItems, inactiveItems, outfits, usageLog] = await Promise.all([
+      this.getItems(forceRefresh),
+      this.getInactiveItems(forceRefresh),
+      this.getOutfits(forceRefresh),
+      this.getUsageLog(forceRefresh),
+    ]);
+
+    console.log("Analytics raw data counts:", {
+      activeItems: activeItems?.length || 0,
+      inactiveItems: inactiveItems?.length || 0,
+      outfits: outfits?.length || 0,
+      usageLog: usageLog?.length || 0,
+    });
+
+    if (activeItems?.length > 0) {
+      console.log("Sample active item:", {
+        id: activeItems[0].id,
+        item_name: activeItems[0].item_name,
+        department: activeItems[0].department,
+        purchase_price: activeItems[0].purchase_price,
+      });
+    }
+    if (usageLog?.length > 0) {
+      console.log("Sample usage log entry:", {
+        id: usageLog[0].id,
+        date_worn: usageLog[0].date_worn,
+        occasion: usageLog[0].occasion,
+        outfit_id: usageLog[0].outfit_id,
+      });
+    }
+
+    const itemUsage = {};
+    const seasonalTrends = {};
+    const occasionTrends = {};
+
+    const itemIdToName = {};
+    activeItems.forEach((item) => {
+      if (item.id && item.item_name) {
+        itemIdToName[item.id] = item.item_name;
+      }
+    });
+
+    console.log(
+      `Created item lookup map with ${Object.keys(itemIdToName).length} items`
+    );
+
+    let processedEntries = 0;
+    let seasonalEntries = 0;
+    let occasionEntries = 0;
+
+    usageLog.forEach((record, index) => {
+      if (record.outfit_id) {
+        const key = `outfit_${record.outfit_id}`;
+        itemUsage[key] = (itemUsage[key] || 0) + 1;
+        processedEntries++;
+      }
+
+      if (record.date_worn) {
+        try {
+          const date = new Date(record.date_worn);
+          if (!isNaN(date.getTime())) {
+            const month = date.getMonth();
+            const season = this.getSeason(month);
+            seasonalTrends[season] = (seasonalTrends[season] || 0) + 1;
+            seasonalEntries++;
+          }
+        } catch (e) {
+          console.log(`Error parsing date: ${record.date_worn}`);
+        }
+      }
+
+      if (record.occasion) {
+        occasionTrends[record.occasion] =
+          (occasionTrends[record.occasion] || 0) + 1;
+        occasionEntries++;
+      }
+
+      if (index < 3) {
+        console.log(`Usage entry ${index}:`, {
+          date_worn: record.date_worn,
+          occasion: record.occasion,
+          outfit_id: record.outfit_id,
+          temp_rating: record.temp_rating,
+        });
+      }
+    });
+
+    console.log("Processing complete:", {
+      processedEntries,
+      seasonalEntries,
+      occasionEntries,
+      seasonalTrendsCount: Object.keys(seasonalTrends).length,
+      occasionTrendsCount: Object.keys(occasionTrends).length,
+    });
+
+    const mostWornOutfits = Object.entries(itemUsage)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([outfitKey, count]) => ({
+        item: outfitKey,
+        usage: count,
+      }));
+
+    const leastWornOutfits = Object.entries(itemUsage)
+      .sort(([, a], [, b]) => a - b)
+      .slice(0, 10)
+      .map(([outfitKey, count]) => ({
+        item: outfitKey,
+        usage: count,
+      }));
+
+    const result = {
+      totalActiveItems: activeItems.length,
+      totalInactiveItems: inactiveItems.length,
+      totalOutfits: outfits.length,
+      totalUsageEntries: usageLog.length,
+      mostWornItems: mostWornOutfits,
+      leastWornItems: leastWornOutfits,
+      seasonalTrends,
+      occasionTrends,
+      inactiveItemsAnalysis: this.analyzeInactiveItems(inactiveItems),
+      departmentBreakdown: this.analyzeDepartments(activeItems),
+      priceAnalysis: this.analyzePrices(activeItems),
+      utilizationStats: this.analyzeUtilization(activeItems),
+    };
+
+    console.log("Final analytics result:", {
+      totalActiveItems: result.totalActiveItems,
+      totalUsageEntries: result.totalUsageEntries,
+      seasonalTrendsKeys: Object.keys(result.seasonalTrends),
+      occasionTrendsKeys: Object.keys(result.occasionTrends),
+      seasonalTrendsData: result.seasonalTrends,
+    });
+
+    return result;
   }
 
   async getCostAnalysis(forceRefresh = false) {
@@ -497,13 +585,13 @@ class WardrobeService {
 
     const costPerWear = allItems
       .map((item) => {
-        const itemName = item.Name || item.name;
+        const itemName = item.item_name || item.name;
         const wearCount = usageLog.filter((u) => {
           const logItem = Array.isArray(u["Item"]) ? u["Item"][0] : u["Item"];
           return logItem === itemName || logItem === item.id;
         }).length;
 
-        const cost = item.Cost || item.cost || 0;
+        const cost = item.purchase_price || item.cost || 0;
         return {
           name: itemName,
           cost,
@@ -516,11 +604,11 @@ class WardrobeService {
 
     return {
       totalInvestment: allItems.reduce(
-        (sum, item) => sum + (item.Cost || item.cost || 0),
+        (sum, item) => sum + (item.purchase_price || item.cost || 0),
         0
       ),
       activeWardrobeValue: activeItems.reduce(
-        (sum, item) => sum + (item.Cost || item.cost || 0),
+        (sum, item) => sum + (item.purchase_price || item.cost || 0),
         0
       ),
       bestValueItems: costPerWear
@@ -536,7 +624,11 @@ class WardrobeService {
   }
 }
 
+console.log("✅ WardrobeService class defined");
+
 const wardrobeService = new WardrobeService();
+
+console.log("✅ WardrobeService instance created");
 
 // AI Service
 class AIService {
@@ -555,100 +647,45 @@ CURRENT WARDROBE DATA:
 - Usage Entries: ${
       wardrobeData.detailedAnalytics?.totalUsageEntries || 0
     } individual wears tracked
-- Total Investment: ${wardrobeData.costInsights?.totalInvestment || 0}
+- Total Investment: $${wardrobeData.costInsights?.totalInvestment || 0}
 
 SPECIFIC SEASONAL DATA:
 ${JSON.stringify(wardrobeData.detailedAnalytics?.seasonalTrends || {}, null, 2)}
 
-SPECIFIC OCCASION TRENDS:
+OCCASION TRENDS:
 ${JSON.stringify(wardrobeData.detailedAnalytics?.occasionTrends || {}, null, 2)}
 
-MOST WORN ITEMS (with exact wear counts):
-${
-  wardrobeData.detailedAnalytics?.mostWornItems
-    ?.map((item) => `- ${item.item}: ${item.usage} wears`)
-    .join("\n") || "No usage data available"
-}
-
-LEAST WORN ITEMS (with exact wear counts):
-${
-  wardrobeData.detailedAnalytics?.leastWornItems
-    ?.map((item) => `- ${item.item}: ${item.usage} wears`)
-    .join("\n") || "No usage data available"
-}
-
-BEST VALUE ITEMS (cost per wear):
-${
-  wardrobeData.costInsights?.bestValueItems
-    ?.map(
-      (item) =>
-        `- ${item.name}: ${item.costPerWear?.toFixed(2)}/wear (${
-          item.wearCount
-        } wears, ${item.cost} cost)`
-    )
-    .join("\n") || "No cost data available"
-}
-
-SAMPLE RECENT USAGE ENTRIES:
-${
-  wardrobeData.recentUsageSample
-    ?.map(
-      (usage) =>
-        `- ${usage.date}: ${usage.item} for ${
-          usage.occasion || "unspecified"
-        } (${usage.weather || "no weather data"})`
-    )
-    .join("\n") || "No recent usage data"
-}
-
-SAMPLE ACTIVE ITEMS:
-${
-  wardrobeData.activeItemsSample
-    ?.map(
-      (item) =>
-        `- ${item.name}: ${item.category || "unknown category"}, ${
-          item.color || "unknown color"
-        }, ${item.cost || 0}`
-    )
-    .join("\n") || "No item details available"
-}
-
-SHOPPING LIST ITEMS:
-${
-  wardrobeData.referenceData?.shoppingListSample
-    ?.map((item) => `- ${item.Item || item.Name || "Unknown item"}`)
-    .join("\n") || "No shopping list items"
-}
-
-INACTIVE ITEMS ANALYSIS:
+DEPARTMENT BREAKDOWN:
 ${JSON.stringify(
-  wardrobeData.detailedAnalytics?.inactiveItemsAnalysis || {},
+  wardrobeData.detailedAnalytics?.departmentBreakdown || {},
   null,
   2
 )}
 
+PRICE ANALYSIS:
+Average item cost: $${
+      wardrobeData.detailedAnalytics?.priceAnalysis?.average?.toFixed(2) || 0
+    }
+Total wardrobe investment: $${
+      wardrobeData.detailedAnalytics?.priceAnalysis?.total || 0
+    }
+Price range: $${wardrobeData.detailedAnalytics?.priceAnalysis?.min || 0} - $${
+      wardrobeData.detailedAnalytics?.priceAnalysis?.max || 0
+    }
+
+MOST WORN OUTFITS:
+${
+  wardrobeData.detailedAnalytics?.mostWornItems
+    ?.map((item) => `- ${item.item}: ${item.usage} times`)
+    .join("\n") || "No usage data available"
+}
+
 CRITICAL INSTRUCTIONS:
 1. ALWAYS use specific numbers from the data provided above
-2. ALWAYS reference actual item names when available
-3. ALWAYS cite specific wear counts, costs, and dates
+2. ALWAYS reference actual seasonal trends, occasion patterns, and department breakdowns
+3. ALWAYS cite specific wear counts, costs, and statistics
 4. NEVER give generic advice - only use the actual data provided
-5. When discussing seasonal patterns, use the exact seasonal trends numbers
-6. When discussing cost analysis, use exact dollar amounts and wear counts
-7. If asked about specific items, search through the provided sample data
-8. Always start responses with "Based on your wardrobe data..." and cite specific numbers
-
-EXAMPLE GOOD RESPONSE:
-"Based on your wardrobe data with ${
-      wardrobeData.detailedAnalytics?.totalUsageEntries || 0
-    } usage entries, your seasonal wearing patterns show: Spring has ${
-      wardrobeData.detailedAnalytics?.seasonalTrends?.Spring || 0
-    } wears, Summer has ${
-      wardrobeData.detailedAnalytics?.seasonalTrends?.Summer || 0
-    } wears, Fall has ${
-      wardrobeData.detailedAnalytics?.seasonalTrends?.Fall || 0
-    } wears, and Winter has ${
-      wardrobeData.detailedAnalytics?.seasonalTrends?.Winter || 0
-    } wears. Your most active season is [specific season with highest number]."
+5. Always start responses with "Based on your wardrobe data..." and cite specific numbers
 
 Be conversational but ALWAYS data-specific. Never give generic wardrobe advice.`;
 
@@ -663,87 +700,48 @@ Be conversational but ALWAYS data-specific. Never give generic wardrobe advice.`
 
     try {
       const completion = await openai.chat.completions.create({
-        model: "gpt-4o", // Upgraded to GPT-4o (newest, fastest GPT-4)
-        messages: messages,
-        max_tokens: 800, // Increased for more detailed responses
-        temperature: 0.3,
-      });
-
-      return completion.choices[0].message.content;
-    } catch (error) {
-      if (error.code === "insufficient_quota") {
-        return "I'm currently experiencing quota limitations with the AI service. I can still access your wardrobe data, but AI responses are temporarily limited. Your data is safely cached and will be available when the quota resets.";
-      }
-      throw error;
-    }
-  }
-
-  async evaluatePurchase(itemUrl, description, wardrobeData) {
-    if (!openai) {
-      return "I'm sorry, but the AI service is not configured. Please set up your OpenAI API key to enable purchase evaluation.";
-    }
-
-    const prompt = `Based on this wardrobe data:
-ACTIVE: ${wardrobeData.activeItems?.length || 0} items
-INACTIVE: ${wardrobeData.inactiveItems?.length || 0} items  
-ANALYTICS: ${JSON.stringify(wardrobeData.analytics, null, 2)}
-
-Evaluate: ${description}
-URL: ${itemUrl}
-
-Provide a recommendation with specific reasoning.`;
-
-    try {
-      const completion = await openai.chat.completions.create({
         model: "gpt-4o",
-        messages: [{ role: "user", content: prompt }],
-        max_tokens: 600,
+        messages: messages,
+        max_tokens: 800,
         temperature: 0.3,
       });
 
       return completion.choices[0].message.content;
     } catch (error) {
       if (error.code === "insufficient_quota") {
-        return "AI purchase evaluation is temporarily limited due to quota restrictions. However, I can tell you that based on your data, you have detailed information about your wardrobe patterns that would inform a good decision.";
+        return "I'm currently experiencing quota limitations with the AI service. I can still access your wardrobe data, but AI responses are temporarily limited.";
       }
       throw error;
     }
   }
 }
 
+console.log("✅ AIService class defined");
+
 const aiService = new AIService();
+
+console.log("✅ AIService instance created");
 
 // Initialize app
 async function initializeApp() {
   await ensureDataDir();
   await loadAllCachedData();
 
-  // Check if we have any cached data
   const totalCachedRecords = Object.values(cache).reduce((sum, cacheEntry) => {
     return sum + (cacheEntry.data ? cacheEntry.data.length : 0);
   }, 0);
 
   console.log(`Total cached records: ${totalCachedRecords}`);
-
-  if (totalCachedRecords === 0) {
-    console.log(
-      "No cached data found. Server is ready - use API endpoints to fetch data when quota allows."
-    );
-    console.log("Try: POST http://localhost:3001/api/refresh/shopping-list");
-  } else {
-    console.log("Using existing cached data. Server ready for chat!");
-  }
-
-  // Don't try to fetch anything on startup - let user control when to fetch
   console.log("Startup completed. Ready to serve requests.");
 }
+
+console.log("🔄 About to define routes...");
 
 // Routes
 app.get("/api/health", (req, res) => {
   res.json({ status: "OK", timestamp: new Date().toISOString() });
 });
 
-// Cache status endpoint
 app.get("/api/cache-status", (req, res) => {
   const status = {};
   Object.keys(cache).forEach((key) => {
@@ -760,7 +758,58 @@ app.get("/api/cache-status", (req, res) => {
   res.json(status);
 });
 
-// Force refresh specific table
+app.get("/api/debug/chat-data", async (req, res) => {
+  try {
+    const [
+      activeItems,
+      inactiveItems,
+      outfits,
+      usageLog,
+      analytics,
+      costAnalysis,
+    ] = await Promise.all([
+      wardrobeService.getItems(false),
+      wardrobeService.getInactiveItems(false),
+      wardrobeService.getOutfits(false),
+      wardrobeService.getUsageLog(false),
+      wardrobeService.analyzeUsagePatterns(false),
+      wardrobeService.getCostAnalysis(false),
+    ]);
+
+    const debugInfo = {
+      rawDataCounts: {
+        activeItems: activeItems?.length || 0,
+        inactiveItems: inactiveItems?.length || 0,
+        outfits: outfits?.length || 0,
+        usageLog: usageLog?.length || 0,
+      },
+      sampleData: {
+        firstActiveItem: activeItems?.[0] || null,
+        firstUsageEntry: usageLog?.[0] || null,
+      },
+      analyticsStructure: {
+        hasAnalytics: !!analytics,
+        analyticsKeys: analytics ? Object.keys(analytics) : [],
+        totalActiveItems: analytics?.totalActiveItems,
+        totalUsageEntries: analytics?.totalUsageEntries,
+        seasonalTrends: analytics?.seasonalTrends,
+        occasionTrends: analytics?.occasionTrends,
+        departmentBreakdown: analytics?.departmentBreakdown,
+      },
+      costAnalysisStructure: {
+        hasCostAnalysis: !!costAnalysis,
+        costAnalysisKeys: costAnalysis ? Object.keys(costAnalysis) : [],
+        totalInvestment: costAnalysis?.totalInvestment,
+      },
+    };
+
+    res.json(debugInfo);
+  } catch (error) {
+    console.error("Debug endpoint error:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.post("/api/refresh/:table", async (req, res) => {
   try {
     const { table } = req.params;
@@ -786,20 +835,17 @@ app.post("/api/refresh/:table", async (req, res) => {
   }
 });
 
-// Clear all cached data
 app.post("/api/clear-cache", async (req, res) => {
   try {
-    // Clear in-memory cache
     Object.keys(cache).forEach((key) => {
       cache[key] = { data: null, timestamp: null, lastRecordId: null };
     });
 
-    // Delete cache files
     for (const key of Object.keys(cache)) {
       try {
         await fs.unlink(path.join(DATA_DIR, `${key}.json`));
       } catch (error) {
-        // File might not exist, ignore
+        // File might not exist
       }
     }
 
@@ -821,39 +867,6 @@ app.get("/api/wardrobe/items", async (req, res) => {
   }
 });
 
-app.get("/api/wardrobe/inactive-items", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const items = await wardrobeService.getInactiveItems(forceRefresh);
-    res.json(items);
-  } catch (error) {
-    console.error("Error fetching inactive items:", error);
-    res.status(500).json({ error: "Failed to fetch inactive items" });
-  }
-});
-
-app.get("/api/wardrobe/all-items", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const items = await wardrobeService.getAllItems(forceRefresh);
-    res.json(items);
-  } catch (error) {
-    console.error("Error fetching all items:", error);
-    res.status(500).json({ error: "Failed to fetch all items" });
-  }
-});
-
-app.get("/api/wardrobe/outfits", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const outfits = await wardrobeService.getOutfits(forceRefresh);
-    res.json(outfits);
-  } catch (error) {
-    console.error("Error fetching outfits:", error);
-    res.status(500).json({ error: "Failed to fetch outfits" });
-  }
-});
-
 app.get("/api/wardrobe/usage-log", async (req, res) => {
   try {
     const forceRefresh = req.query.refresh === "true";
@@ -862,39 +875,6 @@ app.get("/api/wardrobe/usage-log", async (req, res) => {
   } catch (error) {
     console.error("Error fetching usage log:", error);
     res.status(500).json({ error: "Failed to fetch usage log" });
-  }
-});
-
-app.get("/api/wardrobe/inspiration", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const inspiration = await wardrobeService.getInspiration(forceRefresh);
-    res.json(inspiration);
-  } catch (error) {
-    console.error("Error fetching inspiration:", error);
-    res.status(500).json({ error: "Failed to fetch inspiration" });
-  }
-});
-
-app.get("/api/wardrobe/shopping-list", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const shoppingList = await wardrobeService.getShoppingList(forceRefresh);
-    res.json(shoppingList);
-  } catch (error) {
-    console.error("Error fetching shopping list:", error);
-    res.status(500).json({ error: "Failed to fetch shopping list" });
-  }
-});
-
-app.get("/api/wardrobe/avoids", async (req, res) => {
-  try {
-    const forceRefresh = req.query.refresh === "true";
-    const avoids = await wardrobeService.getAvoids(forceRefresh);
-    res.json(avoids);
-  } catch (error) {
-    console.error("Error fetching avoids:", error);
-    res.status(500).json({ error: "Failed to fetch avoids list" });
   }
 });
 
@@ -923,97 +903,62 @@ app.get("/api/wardrobe/cost-analysis", async (req, res) => {
 app.post("/api/chat", async (req, res) => {
   try {
     const { message, context = [] } = req.body;
+    console.log("=== CHAT REQUEST START ===");
+    console.log("Message:", message);
 
-    // Use cached data (no fresh API calls during chat)
-    const [
-      activeItems,
-      inactiveItems,
-      outfits,
-      usageLog,
-      inspiration,
-      shoppingList,
-      avoids,
-      analytics,
-      costAnalysis,
-    ] = await Promise.all([
-      wardrobeService.getItems(false), // Never force refresh during chat
-      wardrobeService.getInactiveItems(false),
-      wardrobeService.getOutfits(false),
-      wardrobeService.getUsageLog(false),
-      wardrobeService.getInspiration(false),
-      wardrobeService.getShoppingList(false),
-      wardrobeService.getAvoids(false),
-      wardrobeService.analyzeUsagePatterns(false),
-      wardrobeService.getCostAnalysis(false),
-    ]);
+    const analytics = await wardrobeService.analyzeUsagePatterns(false);
+    const costAnalysis = await wardrobeService.getCostAnalysis(false);
+
+    console.log("Analytics for AI:", {
+      totalActiveItems: analytics?.totalActiveItems,
+      totalUsageEntries: analytics?.totalUsageEntries,
+      hasSeasonalTrends: !!analytics?.seasonalTrends,
+      seasonalTrendsKeys: Object.keys(analytics?.seasonalTrends || {}),
+      occasionTrendsKeys: Object.keys(analytics?.occasionTrends || {}),
+    });
 
     const wardrobeData = {
-      activeItems: activeItems.slice(0, 30),
-      inactiveItems: inactiveItems.slice(0, 20),
-      recentOutfits: outfits.slice(0, 15),
-      recentUsage: usageLog.slice(0, 20),
-      inspirationCount: inspiration.length,
-      shoppingListCount: shoppingList.length,
-      avoidsCount: avoids.length,
-      analytics,
-      costAnalysis,
+      detailedAnalytics: analytics,
+      costInsights: costAnalysis,
     };
+
+    console.log("Sending to AI - wardrobeData structure:", {
+      hasDetailedAnalytics: !!wardrobeData.detailedAnalytics,
+      hasCostInsights: !!wardrobeData.costInsights,
+      totalActiveItems: wardrobeData.detailedAnalytics?.totalActiveItems,
+      seasonalTrendsData: wardrobeData.detailedAnalytics?.seasonalTrends,
+    });
 
     const response = await aiService.generateResponse(
       message,
       context,
       wardrobeData
     );
+    console.log("AI response length:", response?.length || 0);
+    console.log("=== CHAT REQUEST END ===");
 
     res.json({ response });
   } catch (error) {
-    console.error("Error processing chat:", error);
-    res.status(500).json({ error: "Failed to process message" });
+    console.error("Chat error:", error);
+    res
+      .status(500)
+      .json({ error: "Failed to process message", details: error.message });
   }
 });
 
-app.post("/api/evaluate-purchase", async (req, res) => {
-  try {
-    const { itemUrl, description } = req.body;
-
-    const [analytics, activeItems, inactiveItems, costAnalysis] =
-      await Promise.all([
-        wardrobeService.analyzeUsagePatterns(false),
-        wardrobeService.getItems(false),
-        wardrobeService.getInactiveItems(false),
-        wardrobeService.getCostAnalysis(false),
-      ]);
-
-    const wardrobeData = {
-      activeItems,
-      inactiveItems,
-      analytics,
-      costAnalysis,
-    };
-
-    const evaluation = await aiService.evaluatePurchase(
-      itemUrl,
-      description,
-      wardrobeData
-    );
-
-    res.json({ evaluation });
-  } catch (error) {
-    console.error("Error evaluating purchase:", error);
-    res.status(500).json({ error: "Failed to evaluate purchase" });
-  }
-});
+console.log("✅ All routes defined");
 
 // Initialize and start server
 initializeApp()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/api/health`);
+      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`🔗 Health check: http://localhost:${PORT}/api/health`);
+      console.log("🎉 Wardrobe AI is ready!");
     });
   })
   .catch((error) => {
-    console.error("Failed to initialize app:", error);
+    console.error("❌ Failed to initialize app:", error);
     process.exit(1);
   });
 
