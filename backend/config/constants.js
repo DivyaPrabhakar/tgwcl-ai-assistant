@@ -1,4 +1,9 @@
-// config/constants.js - Centralized configuration for wardrobe logic
+// config/constants.js - Clean and modular constants
+
+// === IMPORT FIELD EXTRACTORS ===
+const FIELD_EXTRACTORS_MODULE = require("../services/fieldExtractors");
+
+// === WARDROBE CONFIGURATION ===
 const WARDROBE_CONFIG = {
   // Target active statuses for fuzzy matching
   TARGET_ACTIVE_STATUSES: [
@@ -9,21 +14,6 @@ const WARDROBE_CONFIG = {
     "borrowed",
     "needs repair",
   ],
-
-  // Field mappings for different Airtable naming conventions
-  FIELD_MAPPINGS: {
-    ITEM_NAME: ["Name", "name", "Item Name", "item_name"],
-    CATEGORY: ["Category", "category", "Department", "department"],
-    STATUS: ["Status", "status", "State", "state"],
-    COST: ["Cost", "cost", "Price", "price", "Cost ($)", "Price ($)"],
-    BRAND: ["Brand", "brand", "Manufacturer", "manufacturer"],
-    COLOR: ["Color", "color", "Colour", "colour"],
-    SEASON: ["Season", "season"],
-    SIZE: ["Size", "size"],
-    DATE_WORN: ["date_worn", "Date", "Date Worn", "Worn Date"],
-    OCCASION: ["occasion", "Occasion", "Event", "event"],
-    RATING: ["Rating", "rating", "Score", "score"],
-  },
 
   // Cache settings
   CACHE: {
@@ -51,56 +41,15 @@ const WARDROBE_CONFIG = {
   },
 };
 
-// Helper functions for field extraction
-const FIELD_EXTRACTORS = {
-  getFieldValue: (item, fieldType) => {
-    const possibleFields = WARDROBE_CONFIG.FIELD_MAPPINGS[fieldType];
-    for (const field of possibleFields) {
-      if (item[field] !== undefined && item[field] !== null) {
-        return item[field];
-      }
-    }
-    return null;
-  },
+// === FIELD EXTRACTORS (FROM EXTERNAL MODULE) ===
+// Get the flat extractors object for backward compatibility
+const FIELD_EXTRACTORS = FIELD_EXTRACTORS_MODULE.utils.getAllExtractors();
 
-  extractPrice: (item) => {
-    const priceValue = FIELD_EXTRACTORS.getFieldValue(item, "COST");
-    if (!priceValue) return 0;
-
-    const numericValue =
-      typeof priceValue === "string"
-        ? parseFloat(priceValue.replace(/[$,]/g, ""))
-        : priceValue;
-
-    return !isNaN(numericValue) && numericValue > 0 ? numericValue : 0;
-  },
-
-  extractItemName: (item) => {
-    return FIELD_EXTRACTORS.getFieldValue(item, "ITEM_NAME") || "";
-  },
-
-  extractCategory: (item) => {
-    return FIELD_EXTRACTORS.getFieldValue(item, "CATEGORY") || "Uncategorized";
-  },
-
-  extractStatus: (item) => {
-    return FIELD_EXTRACTORS.getFieldValue(item, "STATUS") || "unknown";
-  },
-
-  getSeason: (date) => {
-    const month = new Date(date).getMonth();
-    for (const [season, months] of Object.entries(
-      WARDROBE_CONFIG.ANALYTICS.SEASONS
-    )) {
-      if (months.includes(month)) return season;
-    }
-    return "unknown";
-  },
-};
-
-// Fuzzy matching utility for status detection
+// === STATUS MATCHING UTILITIES ===
 const STATUS_MATCHER = {
-  // Calculate similarity between two strings (0-1, 1 = exact match)
+  /**
+   * Calculate similarity between two strings (0-1, 1 = exact match)
+   */
   calculateSimilarity: (str1, str2) => {
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
@@ -132,7 +81,9 @@ const STATUS_MATCHER = {
     return (matches / Math.max(s1.length, s2.length)) * 0.4;
   },
 
-  // Find the best match for a status from target list
+  /**
+   * Find the best match for a status from target list
+   */
   findBestMatch: (actualStatus, targetStatuses, threshold = 0.5) => {
     let bestMatch = null;
     let bestScore = 0;
@@ -148,14 +99,16 @@ const STATUS_MATCHER = {
     return bestMatch;
   },
 
-  // Determine active statuses from actual Airtable data
+  /**
+   * Determine active statuses from actual Airtable data
+   */
   determineActiveStatuses: (allActualStatuses) => {
     const activeMatches = [];
     const targetStatuses = WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES;
 
-    console.log("🔍 Matching actual statuses to target active statuses...");
-    console.log("📝 Actual statuses from Airtable:", allActualStatuses);
-    console.log("🎯 Target active statuses:", targetStatuses);
+    console.log("🔍 STATUS MATCHING PROCESS:");
+    console.log("📝 Input statuses:", allActualStatuses);
+    console.log("🎯 Target patterns:", targetStatuses);
 
     for (const actualStatus of allActualStatuses) {
       const match = STATUS_MATCHER.findBestMatch(
@@ -163,6 +116,7 @@ const STATUS_MATCHER = {
         targetStatuses,
         0.5
       );
+
       if (match) {
         activeMatches.push({
           actual: actualStatus,
@@ -170,34 +124,44 @@ const STATUS_MATCHER = {
           score: match.score,
         });
         console.log(
-          `✅ Matched "${actualStatus}" to "${
-            match.target
-          }" (score: ${match.score.toFixed(2)})`
+          `✅ "${actualStatus}" → "${match.target}" (${(
+            match.score * 100
+          ).toFixed(0)}%)`
         );
       } else {
-        console.log(`❌ No match found for "${actualStatus}"`);
+        console.log(`❌ No match for "${actualStatus}"`);
       }
     }
 
     const activeStatuses = activeMatches.map((m) => m.actual);
-    console.log("🎯 Final active statuses:", activeStatuses);
+    const unmatchedStatuses = allActualStatuses.filter(
+      (s) => !activeStatuses.includes(s)
+    );
+
+    console.log("🎯 RESULTS:");
+    console.log(`   Active: ${activeStatuses.join(", ")}`);
+    console.log(`   Unmatched: ${unmatchedStatuses.join(", ")}`);
 
     return {
       activeStatuses,
       matches: activeMatches,
-      unmatchedStatuses: allActualStatuses.filter(
-        (s) => !activeStatuses.includes(s)
-      ),
+      unmatchedStatuses,
     };
   },
 };
 
-// Status utility functions
+// === STATUS UTILITIES ===
 const STATUS_UTILS = {
+  /**
+   * Check if a status is considered active
+   */
   isActive: (status, activeStatuses) => {
-    return activeStatuses.includes(status?.toLowerCase?.() || status);
+    return activeStatuses.includes(status);
   },
 
+  /**
+   * Get formula information for active items calculation
+   */
   getActiveFormula: (activeStatuses, matches = []) => ({
     description: "Items with status matching active patterns",
     activeStatuses: activeStatuses,
@@ -210,8 +174,11 @@ const STATUS_UTILS = {
       "Active items include those ready to wear or temporarily unavailable but still owned",
   }),
 
+  /**
+   * Categorize items by active/inactive status
+   */
   categorizeByStatus: (items, activeStatuses) => {
-    return items.reduce(
+    const categorized = items.reduce(
       (acc, item) => {
         const status = FIELD_EXTRACTORS.extractStatus(item);
         if (STATUS_UTILS.isActive(status, activeStatuses)) {
@@ -223,12 +190,216 @@ const STATUS_UTILS = {
       },
       { active: [], inactive: [], unknown: [] }
     );
+
+    // Log categorization results
+    console.log("📊 STATUS CATEGORIZATION:");
+    console.log(`   Active: ${categorized.active.length} items`);
+    console.log(`   Inactive: ${categorized.inactive.length} items`);
+    console.log(`   Total: ${items.length} items`);
+
+    return categorized;
+  },
+
+  /**
+   * Get status breakdown statistics
+   */
+  getStatusBreakdown: (items) => {
+    const breakdown = {};
+    let totalProcessed = 0;
+
+    items.forEach((item) => {
+      const status = FIELD_EXTRACTORS.extractStatus(item);
+      breakdown[status] = (breakdown[status] || 0) + 1;
+      totalProcessed++;
+    });
+
+    console.log("📈 STATUS BREAKDOWN:");
+    Object.entries(breakdown)
+      .sort(([, a], [, b]) => b - a)
+      .forEach(([status, count]) => {
+        const percentage = ((count / totalProcessed) * 100).toFixed(1);
+        console.log(`   ${status}: ${count} (${percentage}%)`);
+      });
+
+    return breakdown;
+  },
+
+  /**
+   * Validate status configuration
+   */
+  validateStatusConfig: (statusConfig) => {
+    const issues = [];
+
+    if (!statusConfig) {
+      issues.push("Status configuration is null/undefined");
+      return issues;
+    }
+
+    if (!Array.isArray(statusConfig.activeStatuses)) {
+      issues.push("activeStatuses is not an array");
+    } else if (statusConfig.activeStatuses.length === 0) {
+      issues.push("No active statuses configured");
+    }
+
+    if (!Array.isArray(statusConfig.allStatuses)) {
+      issues.push("allStatuses is not an array");
+    }
+
+    if (issues.length === 0) {
+      console.log("✅ Status configuration is valid");
+    } else {
+      console.warn("⚠️ Status configuration issues:", issues);
+    }
+
+    return issues;
+  },
+};
+
+// === DEBUG UTILITIES ===
+const DEBUG_UTILS = {
+  /**
+   * Test field extractors on sample data
+   */
+  testFieldExtractors: (sampleItem, category = null) => {
+    console.log("\n=== FIELD EXTRACTOR TEST ===");
+    console.log("Sample item:", JSON.stringify(sampleItem, null, 2));
+
+    const extractors = category
+      ? FIELD_EXTRACTORS_MODULE.utils.getByCategory(category)
+      : FIELD_EXTRACTORS;
+
+    const results = {};
+
+    for (const [extractorName, extractorFunc] of Object.entries(extractors)) {
+      if (typeof extractorFunc === "function") {
+        try {
+          const result = extractorFunc(sampleItem);
+          results[extractorName] = result;
+
+          const isMissing =
+            typeof result === "string" && result.startsWith("cannot");
+          console.log(`${isMissing ? "❌" : "✅"} ${extractorName}: ${result}`);
+        } catch (error) {
+          results[extractorName] = `ERROR: ${error.message}`;
+          console.log(`💥 ${extractorName}: ERROR - ${error.message}`);
+        }
+      }
+    }
+
+    console.log("=== END TEST ===\n");
+    return results;
+  },
+
+  /**
+   * Analyze data quality across records
+   */
+  analyzeDataQuality: (records, recordType = "items") => {
+    if (!Array.isArray(records) || records.length === 0) {
+      console.warn("No records provided for data quality analysis");
+      return {};
+    }
+
+    console.log(
+      `\n=== DATA QUALITY ANALYSIS (${recordType.toUpperCase()}) ===`
+    );
+    console.log(`Total records: ${records.length}`);
+
+    // Get coverage report
+    const coverage =
+      FIELD_EXTRACTORS_MODULE.utils.analyzeFieldCoverage(records);
+
+    // Sort by missing percentage
+    const sortedCoverage = Object.entries(coverage).sort(
+      ([, a], [, b]) => b.percentage - a.percentage
+    );
+
+    console.log("\nField Coverage Report:");
+    console.log(
+      "Field Name".padEnd(30) +
+        "Found".padEnd(10) +
+        "Missing".padEnd(10) +
+        "Coverage"
+    );
+    console.log("-".repeat(60));
+
+    sortedCoverage.forEach(([fieldName, stats]) => {
+      const coverage = `${stats.percentage}%`;
+      const status =
+        stats.percentage >= 80 ? "✅" : stats.percentage >= 50 ? "⚠️" : "❌";
+
+      console.log(
+        `${status} ${fieldName.padEnd(25)} ${stats.found
+          .toString()
+          .padEnd(8)} ${stats.missing.toString().padEnd(8)} ${coverage}`
+      );
+    });
+
+    const wellCoveredFields = sortedCoverage.filter(
+      ([, stats]) => stats.percentage >= 80
+    ).length;
+    const poorlyCoveredFields = sortedCoverage.filter(
+      ([, stats]) => stats.percentage < 50
+    ).length;
+
+    console.log(`\nSummary:`);
+    console.log(`  Well covered (80%+): ${wellCoveredFields} fields`);
+    console.log(`  Poorly covered (<50%): ${poorlyCoveredFields} fields`);
+    console.log("=== END ANALYSIS ===\n");
+
+    return coverage;
+  },
+
+  /**
+   * Compare two records to see field differences
+   */
+  compareRecords: (
+    record1,
+    record2,
+    label1 = "Record 1",
+    label2 = "Record 2"
+  ) => {
+    console.log(`\n=== RECORD COMPARISON: ${label1} vs ${label2} ===`);
+
+    const allFields = new Set([
+      ...Object.keys(record1),
+      ...Object.keys(record2),
+    ]);
+
+    allFields.forEach((field) => {
+      const val1 = record1[field];
+      const val2 = record2[field];
+
+      if (val1 !== val2) {
+        console.log(`${field}:`);
+        console.log(`  ${label1}: ${JSON.stringify(val1)}`);
+        console.log(`  ${label2}: ${JSON.stringify(val2)}`);
+      }
+    });
+
+    console.log("=== END COMPARISON ===\n");
+  },
+
+  /**
+   * Get configuration summary
+   */
+  getConfigSummary: () => {
+    return {
+      targetActiveStatuses: WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES,
+      cacheConfig: WARDROBE_CONFIG.CACHE,
+      uiConfig: WARDROBE_CONFIG.UI,
+      analyticsConfig: WARDROBE_CONFIG.ANALYTICS,
+      availableExtractorCategories:
+        FIELD_EXTRACTORS_MODULE.utils.getCategories(),
+      totalExtractors: Object.keys(FIELD_EXTRACTORS).length,
+    };
   },
 };
 
 module.exports = {
   WARDROBE_CONFIG,
   FIELD_EXTRACTORS,
+  FIELD_EXTRACTORS_MODULE, // Export the full module for advanced usage
   STATUS_MATCHER,
   STATUS_UTILS,
+  DEBUG_UTILS,
 };

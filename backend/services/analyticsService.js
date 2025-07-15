@@ -1,4 +1,4 @@
-// services/analyticsService.js - Refactored with dynamic status support
+// services/analyticsService.js - Simplified with field normalization
 const {
   WARDROBE_CONFIG,
   FIELD_EXTRACTORS,
@@ -11,21 +11,20 @@ class AnalyticsService {
   }
 
   /**
-   * Analyze usage patterns with dynamic status-based filtering
+   * Analyze usage patterns with normalized data (much simpler!)
    */
   async analyzeUsagePatterns(forceRefresh = false, statusConfig = null) {
     try {
-      console.log(
-        "📊 Analyzing usage patterns with dynamic status configuration..."
-      );
+      console.log("📊 Analyzing usage patterns with normalized data...");
 
+      // Get normalized data (field normalization happens in AirtableService)
       const [items, usageLog, outfits] = await Promise.all([
         this.airtableService.getAllItems(forceRefresh),
         this.airtableService.getUsageLog(forceRefresh),
         this.airtableService.getOutfits(forceRefresh),
       ]);
 
-      console.log("📊 Raw data loaded:", {
+      console.log("📊 Normalized data loaded:", {
         items: items.length,
         usageLog: usageLog.length,
         outfits: outfits.length,
@@ -35,13 +34,13 @@ class AnalyticsService {
       const activeStatuses = statusConfig?.activeStatuses || [];
       console.log("🏷️ Using active statuses:", activeStatuses);
 
-      // Categorize items by dynamic status
+      // Categorize items by dynamic status (now using normalized data)
       const categorizedItems = STATUS_UTILS.categorizeByStatus(
         items,
         activeStatuses
       );
 
-      // Calculate analytics for different item categories
+      // Calculate analytics using simplified field extractors
       const analytics = {
         // Basic counts
         totalActiveItems: categorizedItems.active.length,
@@ -50,22 +49,22 @@ class AnalyticsService {
         totalOutfits: outfits.length,
         totalUsageEntries: usageLog.length,
 
-        // Status analysis
+        // Status analysis (simplified)
         statusBreakdown: this._calculateStatusBreakdown(items),
 
-        // Temporal analysis
+        // Temporal analysis (simplified)
         seasonalTrends: this._analyzeSeasonalTrends(usageLog),
         occasionTrends: this._analyzeOccasionTrends(usageLog),
 
-        // Category analysis (active items only)
+        // Category analysis (active items only, simplified)
         departmentBreakdown: this._analyzeDepartmentBreakdown(
           categorizedItems.active
         ),
 
-        // Usage analysis
+        // Usage analysis (simplified)
         mostWornItems: this._analyzeMostWornItems(usageLog),
 
-        // Price analysis (active items only)
+        // Price analysis (active items only, simplified)
         priceAnalysis: this._analyzePrices(categorizedItems.active),
 
         // Dynamic status configuration
@@ -88,12 +87,13 @@ class AnalyticsService {
   }
 
   /**
-   * Enhanced cost analysis with dynamic status-based categorization
+   * Enhanced cost analysis with normalized data (much simpler!)
    */
   async getCostAnalysis(forceRefresh = false, statusConfig = null) {
     try {
-      console.log("💰 Analyzing costs with dynamic status configuration...");
+      console.log("💰 Analyzing costs with normalized data...");
 
+      // Get normalized data
       const [items, usageLog] = await Promise.all([
         this.airtableService.getAllItems(forceRefresh),
         this.airtableService.getUsageLog(forceRefresh),
@@ -102,7 +102,7 @@ class AnalyticsService {
       // Use dynamic status configuration
       const activeStatuses = statusConfig?.activeStatuses || [];
 
-      // Categorize items by dynamic status
+      // Categorize items by dynamic status (simplified)
       const categorizedItems = STATUS_UTILS.categorizeByStatus(
         items,
         activeStatuses
@@ -114,11 +114,11 @@ class AnalyticsService {
         activeStatuses: activeStatuses,
       });
 
-      // Calculate costs for each category
+      // Calculate costs for each category (simplified)
       const activeCosts = this._calculateCosts(categorizedItems.active);
       const inactiveCosts = this._calculateCosts(categorizedItems.inactive);
 
-      // Analyze usage for cost per wear
+      // Analyze usage for cost per wear (simplified)
       const itemUsage = this._calculateItemUsage(usageLog);
       const costPerWearAnalysis = this._calculateCostPerWear(
         categorizedItems.active,
@@ -155,7 +155,7 @@ class AnalyticsService {
           Object.values(itemUsage).reduce((sum, count) => sum + count, 0)
         ),
 
-        // Category cost breakdown (active items only)
+        // Category cost breakdown (active items only, simplified)
         categoryCostBreakdown: this._analyzeCategoryCosts(
           categorizedItems.active
         ),
@@ -178,15 +178,13 @@ class AnalyticsService {
     }
   }
 
-  // === PRIVATE ANALYSIS METHODS ===
+  // === SIMPLIFIED ANALYSIS METHODS (using normalized data) ===
 
-  /**
-   * Calculate status breakdown for all items
-   */
   _calculateStatusBreakdown(items) {
     const breakdown = {};
 
     items.forEach((item) => {
+      // Simple field extraction from normalized data
       const status = FIELD_EXTRACTORS.extractStatus(item);
       breakdown[status] = (breakdown[status] || 0) + 1;
     });
@@ -194,14 +192,12 @@ class AnalyticsService {
     return breakdown;
   }
 
-  /**
-   * Analyze seasonal trends from usage log
-   */
   _analyzeSeasonalTrends(usageLog) {
     const seasonalTrends = {};
 
     usageLog.forEach((entry) => {
-      const dateValue = FIELD_EXTRACTORS.getFieldValue(entry, "DATE_WORN");
+      // Simple field extraction from normalized data
+      const dateValue = FIELD_EXTRACTORS.extractDateWorn(entry);
       if (dateValue) {
         const season = FIELD_EXTRACTORS.getSeason(dateValue);
         seasonalTrends[season] = (seasonalTrends[season] || 0) + 1;
@@ -211,14 +207,12 @@ class AnalyticsService {
     return seasonalTrends;
   }
 
-  /**
-   * Analyze occasion trends from usage log
-   */
   _analyzeOccasionTrends(usageLog) {
     const occasionTrends = {};
 
     usageLog.forEach((entry) => {
-      const occasion = FIELD_EXTRACTORS.getFieldValue(entry, "OCCASION");
+      // Simple field extraction from normalized data
+      const occasion = FIELD_EXTRACTORS.extractOccasion(entry);
       if (occasion) {
         occasionTrends[occasion] = (occasionTrends[occasion] || 0) + 1;
       }
@@ -227,13 +221,11 @@ class AnalyticsService {
     return occasionTrends;
   }
 
-  /**
-   * Analyze department/category breakdown for active items
-   */
   _analyzeDepartmentBreakdown(activeItems) {
     const departmentBreakdown = {};
 
     activeItems.forEach((item) => {
+      // Simple field extraction from normalized data
       const category = FIELD_EXTRACTORS.extractCategory(item);
       departmentBreakdown[category] = (departmentBreakdown[category] || 0) + 1;
     });
@@ -241,9 +233,6 @@ class AnalyticsService {
     return departmentBreakdown;
   }
 
-  /**
-   * Analyze most worn items
-   */
   _analyzeMostWornItems(usageLog) {
     const itemUsage = this._calculateItemUsage(usageLog);
 
@@ -253,13 +242,11 @@ class AnalyticsService {
       .map(([item, usage]) => ({ item, usage }));
   }
 
-  /**
-   * Calculate item usage from usage log
-   */
   _calculateItemUsage(usageLog) {
     const itemUsage = {};
 
     usageLog.forEach((entry) => {
+      // Simple field extraction from normalized data
       const itemName = FIELD_EXTRACTORS.extractItemName(entry);
       if (itemName) {
         itemUsage[itemName] = (itemUsage[itemName] || 0) + 1;
@@ -269,10 +256,8 @@ class AnalyticsService {
     return itemUsage;
   }
 
-  /**
-   * Analyze prices for a set of items
-   */
   _analyzePrices(items) {
+    // Simple field extraction from normalized data
     const prices = items
       .map((item) => FIELD_EXTRACTORS.extractPrice(item))
       .filter((price) => price > 0);
@@ -290,10 +275,8 @@ class AnalyticsService {
     };
   }
 
-  /**
-   * Calculate costs for a category of items
-   */
   _calculateCosts(items) {
+    // Simple field extraction from normalized data
     const prices = items
       .map((item) => FIELD_EXTRACTORS.extractPrice(item))
       .filter((price) => price > 0);
@@ -307,12 +290,10 @@ class AnalyticsService {
     };
   }
 
-  /**
-   * Calculate cost per wear analysis
-   */
   _calculateCostPerWear(activeItems, itemUsage) {
     const costPerWearData = activeItems
       .map((item) => {
+        // Simple field extraction from normalized data
         const price = FIELD_EXTRACTORS.extractPrice(item);
         const itemName = FIELD_EXTRACTORS.extractItemName(item);
         const wearCount = itemUsage[itemName] || 0;
@@ -338,21 +319,16 @@ class AnalyticsService {
     };
   }
 
-  /**
-   * Calculate investment efficiency metric
-   */
   _calculateInvestmentEfficiency(totalInvestment, totalWears) {
     if (totalWears === 0) return 0;
     return totalInvestment / totalWears;
   }
 
-  /**
-   * Analyze costs by category
-   */
   _analyzeCategoryCosts(activeItems) {
     const categoryBreakdown = {};
 
     activeItems.forEach((item) => {
+      // Simple field extraction from normalized data
       const category = FIELD_EXTRACTORS.extractCategory(item);
       const price = FIELD_EXTRACTORS.extractPrice(item);
 
@@ -377,11 +353,8 @@ class AnalyticsService {
     return categoryBreakdown;
   }
 
-  // === ERROR HANDLING ===
+  // === ERROR HANDLING (unchanged) ===
 
-  /**
-   * Return empty analytics structure on error
-   */
   _getEmptyAnalytics(errorMessage = "Unknown error") {
     return {
       totalActiveItems: 0,
@@ -400,9 +373,6 @@ class AnalyticsService {
     };
   }
 
-  /**
-   * Return empty cost analysis structure on error
-   */
   _getEmptyCostAnalysis(errorMessage = "Unknown error") {
     return {
       totalInvestment: 0,
