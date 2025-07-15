@@ -1,4 +1,4 @@
-// routes/index.js - Refactored with better error handling and validation
+// routes/index.js - Complete routes file with all endpoints
 const express = require("express");
 const { WARDROBE_CONFIG } = require("../config/constants");
 
@@ -27,6 +27,21 @@ const validateStatusFilter = (req, res, next) => {
   }
   next();
 };
+
+// Helper function for status descriptions
+function getStatusDescription(status) {
+  const descriptions = {
+    active: "ready to wear immediately",
+    ready_to_sell: "prepared for selling but still owned",
+    lent: "temporarily lent to someone else",
+    in_laundry: "being washed or dried",
+    at_cleaners: "at dry cleaning or professional cleaning",
+    needs_repair: "need fixing but still part of your wardrobe",
+    borrowed: "temporarily borrowed from someone else",
+  };
+
+  return descriptions[status] || "part of your active wardrobe";
+}
 
 function createRoutes(wardrobeService, aiService) {
   // === HEALTH AND SYSTEM ENDPOINTS ===
@@ -103,7 +118,102 @@ function createRoutes(wardrobeService, aiService) {
     })
   );
 
-  // New endpoint to manually update status configuration
+  // Active status summary endpoint
+  router.get(
+    "/wardrobe/active-status-summary",
+    asyncHandler(async (req, res) => {
+      // Get current status configuration quietly (no console logs)
+      const statusConfig = wardrobeService.getActiveStatusesConfig();
+
+      // Get item counts per status
+      const allItems = await wardrobeService.getAllItems(false);
+      const statusCounts = {};
+
+      allItems.forEach((item) => {
+        const status = item.status;
+        if (status) {
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        }
+      });
+
+      // Calculate active item breakdown
+      const activeBreakdown = {};
+      let totalActiveItems = 0;
+
+      statusConfig.activeStatuses.forEach((status) => {
+        const count = statusCounts[status] || 0;
+        activeBreakdown[status] = count;
+        totalActiveItems += count;
+      });
+
+      // Create clean summary
+      const summary = {
+        totalActiveItems,
+        activeStatuses: statusConfig.activeStatuses,
+        activeBreakdown,
+        targetPatterns: statusConfig.targetPatterns,
+        statusMatches: statusConfig.statusMatches || [],
+        lastUpdated: statusConfig.lastUpdated,
+      };
+
+      res.json(summary);
+    })
+  );
+
+  // Active status explanation endpoint
+  router.get(
+    "/wardrobe/active-status-explanation",
+    asyncHandler(async (req, res) => {
+      const statusConfig = wardrobeService.getActiveStatusesConfig();
+      const allItems = await wardrobeService.getAllItems(false);
+
+      // Get breakdown by status
+      const statusBreakdown = {};
+      let totalActiveItems = 0;
+
+      allItems.forEach((item) => {
+        const status = item.status;
+        if (statusConfig.activeStatuses.includes(status)) {
+          statusBreakdown[status] = (statusBreakdown[status] || 0) + 1;
+          totalActiveItems++;
+        }
+      });
+
+      // Get the enhanced formula
+      const { STATUS_UTILS } = require("../config/constants");
+      const activeFormula = STATUS_UTILS.getActiveFormula(
+        statusConfig.activeStatuses,
+        statusConfig.statusMatches || []
+      );
+
+      const explanation = {
+        title: "What Are Active Items?",
+        definition:
+          "Active items are pieces you currently own and can potentially wear, even if temporarily unavailable.",
+
+        totalActiveItems,
+
+        currentlyFound: statusConfig.activeStatuses.map((status) => ({
+          status,
+          count: statusBreakdown[status] || 0,
+          description: getStatusDescription(status),
+        })),
+
+        allConfiguredPatterns: activeFormula.allConfiguredActiveStatuses || [],
+
+        formula: activeFormula.formula,
+        explanation: activeFormula.explanation,
+
+        statusMatches: statusConfig.statusMatches || [],
+
+        lastUpdated: statusConfig.lastUpdated,
+      };
+
+      res.json(explanation);
+    })
+  );
+
+  // Manual status configuration update
   router.post(
     "/wardrobe/update-status-config",
     asyncHandler(async (req, res) => {
@@ -195,7 +305,208 @@ function createRoutes(wardrobeService, aiService) {
     })
   );
 
-  // === DEBUG AND ADMIN ENDPOINTS ===
+  // === DEBUG ENDPOINTS ===
+
+  // Nice HTML status page
+  router.get(
+    "/debug/status-page",
+    asyncHandler(async (req, res) => {
+      const statusConfig = wardrobeService.getActiveStatusesConfig();
+      const allItems = await wardrobeService.getAllItems(false);
+      const statusCounts = {};
+
+      allItems.forEach((item) => {
+        const status = item.status;
+        if (status) {
+          statusCounts[status] = (statusCounts[status] || 0) + 1;
+        }
+      });
+
+      const activeBreakdown = {};
+      let totalActiveItems = 0;
+
+      statusConfig.activeStatuses.forEach((status) => {
+        const count = statusCounts[status] || 0;
+        activeBreakdown[status] = count;
+        totalActiveItems += count;
+      });
+
+      // Generate HTML
+      const html = `
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wardrobe AI - Active Status Summary</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        h2 { color: #34495e; margin-top: 30px; }
+        .metric { background: #ecf0f1; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #3498db; }
+        .active-status { background: #d5edda; border-left-color: #28a745; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .inactive-status { background: #f8d7da; border-left-color: #dc3545; padding: 10px; margin: 5px 0; border-radius: 4px; }
+        .match { background: #fff3cd; border-left-color: #ffc107; padding: 8px; margin: 3px 0; border-radius: 4px; font-size: 14px; }
+        .code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+        .timestamp { color: #6c757d; font-size: 14px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+        th { background-color: #f8f9fa; font-weight: 600; }
+        .count { font-weight: bold; color: #2c3e50; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏷️ Wardrobe AI - Active Status Summary</h1>
+        
+        <div class="metric">
+            <strong>📊 Total Active Items:</strong> <span class="count">${totalActiveItems}</span>
+            <br><span class="timestamp">Last updated: ${new Date(
+              statusConfig.lastUpdated
+            ).toLocaleString()}</span>
+        </div>
+
+        <h2>✅ Currently Active Statuses</h2>
+        <table>
+            <thead>
+                <tr><th>Status</th><th>Item Count</th><th>Percentage</th></tr>
+            </thead>
+            <tbody>
+                ${statusConfig.activeStatuses
+                  .map((status) => {
+                    const count = activeBreakdown[status] || 0;
+                    const percentage =
+                      totalActiveItems > 0
+                        ? Math.round((count / totalActiveItems) * 100)
+                        : 0;
+                    return `<tr>
+                        <td><span class="code">${status}</span></td>
+                        <td class="count">${count}</td>
+                        <td>${percentage}%</td>
+                    </tr>`;
+                  })
+                  .join("")}
+            </tbody>
+        </table>
+
+        <h2>🎯 Target Patterns → Actual Matches</h2>
+        ${(statusConfig.statusMatches || [])
+          .map(
+            (match) =>
+              `<div class="match">
+                <strong>"${match.actual}"</strong> → matches pattern <strong>"${
+                match.target
+              }"</strong> 
+                (${Math.round(match.score * 100)}% confidence)
+            </div>`
+          )
+          .join("")}
+
+        <h2>📋 All Status Breakdown</h2>
+        <table>
+            <thead>
+                <tr><th>Status</th><th>Count</th><th>Type</th></tr>
+            </thead>
+            <tbody>
+                ${Object.entries(statusCounts)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([status, count]) => {
+                    const isActive =
+                      statusConfig.activeStatuses.includes(status);
+                    const type = isActive ? "Active" : "Inactive";
+                    const rowClass = isActive
+                      ? "active-status"
+                      : "inactive-status";
+                    return `<tr class="${rowClass}">
+                            <td><span class="code">${status}</span></td>
+                            <td class="count">${count}</td>
+                            <td>${type}</td>
+                        </tr>`;
+                  })
+                  .join("")}
+            </tbody>
+        </table>
+
+        <h2>🔄 Target Patterns</h2>
+        <div>
+            ${(statusConfig.targetPatterns || [])
+              .map(
+                (pattern) =>
+                  `<span class="code" style="margin: 3px; display: inline-block;">${pattern}</span>`
+              )
+              .join("")}
+        </div>
+
+        <div class="metric" style="margin-top: 30px;">
+            <strong>🔗 API Endpoints:</strong><br>
+            <a href="/api/wardrobe/active-status-summary">JSON Summary</a> | 
+            <a href="/api/wardrobe/statuses">Full Status Config</a> | 
+            <a href="/api/wardrobe/active-items">Active Items List</a>
+        </div>
+    </div>
+</body>
+</html>`;
+
+      res.send(html);
+    })
+  );
+
+  // Debug missing statuses
+  router.get(
+    "/debug/missing-statuses",
+    asyncHandler(async (req, res) => {
+      const allItems = await wardrobeService.getAllItems(true); // Force fresh
+
+      // Get ALL unique statuses in your Airtable
+      const actualStatuses = [
+        ...new Set(allItems.map((item) => item.status).filter((s) => s)),
+      ].sort();
+
+      // Your target patterns
+      const targetPatterns = [
+        "active",
+        "ready to sell",
+        "lent",
+        "in laundry",
+        "at cleaners",
+        "needs repair",
+      ];
+
+      // Current matched active statuses
+      const statusConfig = wardrobeService.getActiveStatusesConfig();
+
+      const analysis = {
+        actualStatusesInYourData: actualStatuses,
+        yourTargetPatterns: targetPatterns,
+        currentlyMatched: statusConfig.activeStatuses,
+
+        // What's missing
+        targetPatternsNotMatched: targetPatterns.filter(
+          (target) =>
+            !statusConfig.statusMatches?.some(
+              (match) => match.target === target
+            )
+        ),
+
+        // Check if any of your actual statuses might match missing patterns
+        potentialMatches: actualStatuses.filter((actual) =>
+          targetPatterns.some(
+            (target) =>
+              actual
+                .toLowerCase()
+                .replace(/_/g, " ")
+                .includes(target.replace(/s$/, "")) ||
+              target
+                .replace(/s$/, "")
+                .includes(actual.toLowerCase().replace(/_/g, " "))
+          )
+        ),
+
+        statusMatchDetails: statusConfig.statusMatches || [],
+      };
+
+      res.json(analysis);
+    })
+  );
 
   router.get(
     "/debug/chat-data",
@@ -457,8 +768,11 @@ function createRoutes(wardrobeService, aiService) {
         "GET /api/health",
         "GET /api/wardrobe/statuses",
         "GET /api/wardrobe/active-items",
+        "GET /api/wardrobe/active-status-summary",
+        "GET /api/wardrobe/active-status-explanation",
         "GET /api/wardrobe/items-by-status",
         "GET /api/wardrobe/analytics",
+        "GET /debug/status-page",
         "POST /api/chat",
       ],
     });

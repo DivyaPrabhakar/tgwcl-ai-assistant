@@ -1,7 +1,7 @@
 // services/airtableService.js - Refactored for easier debugging and maintenance
 
 const Airtable = require("airtable");
-const FieldNormalizer = require("./fieldNormalizer");
+const FieldNormalizer = require("./normalizers/fieldNormalizer");
 
 class AirtableService {
   constructor(cacheManager) {

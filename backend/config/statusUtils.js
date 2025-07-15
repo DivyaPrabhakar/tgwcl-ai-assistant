@@ -1,4 +1,4 @@
-// config/statusUtils.js - Status utility functions
+// config/statusUtils.js - Updated with better getActiveFormula
 
 const WARDROBE_CONFIG = require("./wardrobeConfig");
 
@@ -14,22 +14,77 @@ const STATUS_UTILS = {
   },
 
   /**
-   * Get formula information for active items calculation
-   * @param {Array} activeStatuses - Active statuses
+   * Get formula information for active items calculation - UPDATED VERSION
+   * @param {Array} activeStatuses - Active statuses found in data
    * @param {Array} matches - Status matches from fuzzy matching
    * @returns {Object} - Formula information
    */
-  getActiveFormula: (activeStatuses, matches = []) => ({
-    description: "Items with status matching active patterns",
-    activeStatuses: activeStatuses,
-    targetPatterns: WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES,
-    matches: matches,
-    formula: `COUNT(items WHERE status IN [${activeStatuses
-      .map((s) => `"${s}"`)
-      .join(", ")}])`,
-    explanation:
-      "Active items include those ready to wear or temporarily unavailable but still owned",
-  }),
+  getActiveFormula: (activeStatuses, matches = []) => {
+    // Get all target patterns (what you want to be active)
+    const allTargetPatterns = WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES;
+
+    // Show which patterns are currently matched vs not found
+    const matchedPatterns = matches.map((m) => m.target);
+    const unmatchedPatterns = allTargetPatterns.filter(
+      (pattern) => !matchedPatterns.includes(pattern)
+    );
+
+    // Helper function to explain what each status means
+    const getStatusExplanation = (pattern) => {
+      const explanations = {
+        active: "ready to wear immediately",
+        "ready to sell": "prepared for selling but still owned",
+        lent: "temporarily lent to someone else",
+        "in laundry": "being washed or dried",
+        "at cleaners": "at dry cleaning or professional cleaning",
+        "needs repair": "need fixing but still part of your wardrobe",
+        borrowed: "temporarily borrowed from someone else",
+      };
+
+      return explanations[pattern] || "part of your active wardrobe";
+    };
+
+    // Create explanation that includes ALL intended active statuses
+    const explanation = `Active items include all items you currently own and can potentially wear:
+
+CURRENTLY FOUND IN YOUR DATA:
+${matches
+  .map(
+    (match) =>
+      `• ${match.actual} (${match.target}) - items ${getStatusExplanation(
+        match.target
+      )}`
+  )
+  .join("\n")}
+
+${
+  unmatchedPatterns.length > 0
+    ? `
+CONFIGURED AS ACTIVE (but no items found yet):
+${unmatchedPatterns
+  .map((pattern) => `• ${pattern} - items ${getStatusExplanation(pattern)}`)
+  .join("\n")}`
+    : ""
+}
+
+This ensures comprehensive tracking of your wardrobe including temporarily unavailable items.`;
+
+    return {
+      description: "Items with status matching active patterns",
+      activeStatuses: activeStatuses,
+      targetPatterns: allTargetPatterns,
+      matches: matches,
+      formula: `COUNT(items WHERE status IN [${activeStatuses
+        .map((s) => `"${s}"`)
+        .join(", ")}])`,
+      explanation: explanation,
+
+      // Include all target patterns for UI display
+      allConfiguredActiveStatuses: allTargetPatterns,
+      currentlyMatchedStatuses: activeStatuses,
+      unmatchedButConfiguredStatuses: unmatchedPatterns,
+    };
+  },
 
   /**
    * Categorize items by active/inactive status
@@ -38,9 +93,11 @@ const STATUS_UTILS = {
    * @returns {Object} - Categorized items
    */
   categorizeByStatus: (items, activeStatuses) => {
+    const { FIELD_EXTRACTORS } = require("./constants");
+
     const categorized = items.reduce(
       (acc, item) => {
-        const status = STATUS_UTILS.extractStatus(item);
+        const status = FIELD_EXTRACTORS.extractStatus(item);
         if (STATUS_UTILS.isActive(status, activeStatuses)) {
           acc.active.push(item);
         } else {
@@ -61,26 +118,18 @@ const STATUS_UTILS = {
   },
 
   /**
-   * Extract status from item (temporary - will be replaced by field extractors)
-   * @param {Object} item - Item to extract status from
-   * @returns {string} - Item status
-   */
-  extractStatus: (item) => {
-    // This is a temporary method that will be replaced by proper field extractors
-    return item.status || "unknown";
-  },
-
-  /**
    * Get status breakdown statistics
    * @param {Array} items - Items to analyze
    * @returns {Object} - Status breakdown
    */
   getStatusBreakdown: (items) => {
+    const { FIELD_EXTRACTORS } = require("./constants");
+
     const breakdown = {};
     let totalProcessed = 0;
 
     items.forEach((item) => {
-      const status = STATUS_UTILS.extractStatus(item);
+      const status = FIELD_EXTRACTORS.extractStatus(item);
       breakdown[status] = (breakdown[status] || 0) + 1;
       totalProcessed++;
     });
@@ -182,8 +231,10 @@ const STATUS_UTILS = {
    * @returns {Array} - Items with problematic statuses
    */
   findProblematicItems: (items) => {
+    const { FIELD_EXTRACTORS } = require("./constants");
+
     return items.filter((item) => {
-      const status = STATUS_UTILS.extractStatus(item);
+      const status = FIELD_EXTRACTORS.extractStatus(item);
       return STATUS_UTILS.isProblematicStatus(status);
     });
   },

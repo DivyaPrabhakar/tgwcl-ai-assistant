@@ -1,13 +1,13 @@
-// services/fieldNormalizer.js - Simplified main normalizer
+// services/normalizers/fieldNormalizer.js - Fixed import paths for subdirectory
 
-const FieldTypeDetector = require("./fieldTypeDetector");
-const ValueNormalizers = require("./valueNormalizer");
+const FieldTypeDetector = require("../fieldTypeDetector"); // Go up one directory
+const ValueNormalizer = require("./valueNormalizer"); // Same directory
 
 class FieldNormalizer {
   constructor() {
     this.debugMode = process.env.NODE_ENV === "development";
     this.typeDetector = new FieldTypeDetector();
-    this.valueNormalizers = new ValueNormalizers(this.debugMode);
+    this.valueNormalizers = new ValueNormalizer(this.debugMode);
 
     this.log("Field Normalizer initialized");
   }

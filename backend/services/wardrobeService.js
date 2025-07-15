@@ -1,15 +1,16 @@
-// services/wardrobeService.js - Simplified main service
+// services/wardrobeService.js - Updated to use refactored status manager
 
 const CacheManager = require("./cacheManager");
 const AirtableService = require("./airtableService");
 const AnalyticsService = require("./analyticsService");
 const StatusManager = require("./statusManager");
+const StatusCoordinator = require("./statusCoordinator");
 const DataManager = require("./dataManager");
 
 class WardrobeService {
   constructor() {
     this.initializeServices();
-    console.log("✅ WardrobeService initialized with modular architecture");
+    console.log("✅ WardrobeService initialized with refactored architecture");
   }
 
   // === INITIALIZATION ===
@@ -19,14 +20,17 @@ class WardrobeService {
     this.cacheManager = new CacheManager();
     this.airtableService = new AirtableService(this.cacheManager);
 
-    // Initialize managers
+    // Initialize status management (now slim!)
     this.statusManager = new StatusManager();
+    this.statusCoordinator = new StatusCoordinator(this.statusManager);
+
+    // Initialize data manager
     this.dataManager = new DataManager(
       this.airtableService,
       this.statusManager
     );
 
-    // Initialize analytics (depends on other services)
+    // Initialize analytics
     this.analyticsService = new AnalyticsService(this.airtableService);
   }
 
@@ -46,20 +50,14 @@ class WardrobeService {
 
   logInitializationResults(totalCachedRecords) {
     if (totalCachedRecords === 0) {
-      console.log(
-        "📭 No cached data found. Server is ready - use API endpoints to fetch data when quota allows."
-      );
+      console.log("📭 No cached data found. Server ready for API requests.");
     } else {
-      console.log("📚 Using existing cached data. Server ready for chat!");
+      console.log("📚 Using cached data. Server ready!");
       console.log(
-        `🏷️ Detected ${
-          this.statusManager.getAllStatuses().length
-        } unique statuses`
+        `🏷️ ${this.statusManager.getAllStatuses().length} unique statuses`
       );
       console.log(
-        `✅ Identified ${
-          this.statusManager.getActiveStatuses().length
-        } as active statuses`
+        `✅ ${this.statusManager.getActiveStatuses().length} active statuses`
       );
     }
   }
@@ -98,7 +96,7 @@ class WardrobeService {
     return await this.dataManager.getAvoids(forceRefresh);
   }
 
-  // === STATUS-BASED OPERATIONS (DELEGATED TO DATA MANAGER) ===
+  // === STATUS-BASED OPERATIONS ===
 
   async getItemsByStatus(statuses = [], forceRefresh = false) {
     return await this.dataManager.getItemsByStatus(statuses, forceRefresh);
@@ -106,10 +104,6 @@ class WardrobeService {
 
   async getActiveItems(forceRefresh = false) {
     return await this.dataManager.getActiveItems(forceRefresh);
-  }
-
-  async getInactiveItemsByStatus(forceRefresh = false) {
-    return await this.dataManager.getInactiveItemsByStatus(forceRefresh);
   }
 
   async getCategorizedItems(forceRefresh = false) {
@@ -124,7 +118,7 @@ class WardrobeService {
     return await this.dataManager.updateStatusConfiguration(forceRefresh);
   }
 
-  // === STATUS INFORMATION (DELEGATED TO STATUS MANAGER) ===
+  // === STATUS INFORMATION (SIMPLIFIED) ===
 
   getActiveStatuses() {
     return this.statusManager.getActiveStatuses();
@@ -134,7 +128,7 @@ class WardrobeService {
     return this.statusManager.getStatusConfiguration();
   }
 
-  // === ANALYTICS (DELEGATED TO ANALYTICS SERVICE) ===
+  // === ANALYTICS ===
 
   async analyzeUsagePatterns(forceRefresh = false) {
     const statusConfig = this.statusManager.getStatusConfiguration();
@@ -181,7 +175,7 @@ class WardrobeService {
     };
   }
 
-  // === CACHE MANAGEMENT (DELEGATED) ===
+  // === CACHE MANAGEMENT ===
 
   getCacheStatus() {
     return this.dataManager.getCacheStatus();
@@ -229,7 +223,7 @@ class WardrobeService {
           nodeVersion: process.version,
           platform: process.platform,
           timestamp: new Date().toISOString(),
-          version: "4.0.0 - Modular Architecture",
+          version: "4.0.0 - Refactored Status Manager",
         },
         dataSummary,
         connectionTests,
@@ -243,6 +237,7 @@ class WardrobeService {
           cacheManager: !!this.cacheManager,
           airtableService: !!this.airtableService,
           statusManager: !!this.statusManager,
+          statusCoordinator: !!this.statusCoordinator,
           dataManager: !!this.dataManager,
           analyticsService: !!this.analyticsService,
         },
@@ -273,9 +268,10 @@ class WardrobeService {
         cacheStatus,
         fieldNormalizationEnabled: true,
         timestamp: new Date().toISOString(),
-        version: "4.0.0 - Modular",
+        version: "4.0.0 - Refactored",
         services: {
           statusManager: "active",
+          statusCoordinator: "active",
           dataManager: "active",
           analyticsService: "active",
           airtableService: "active",
@@ -287,15 +283,19 @@ class WardrobeService {
         status: "unhealthy",
         error: error.message,
         timestamp: new Date().toISOString(),
-        version: "4.0.0 - Modular",
+        version: "4.0.0 - Refactored",
       };
     }
   }
 
-  // === SERVICE ACCESS FOR ADVANCED USAGE ===
+  // === SERVICE ACCESS ===
 
   getStatusManager() {
     return this.statusManager;
+  }
+
+  getStatusCoordinator() {
+    return this.statusCoordinator;
   }
 
   getDataManager() {
@@ -304,14 +304,6 @@ class WardrobeService {
 
   getAnalyticsService() {
     return this.analyticsService;
-  }
-
-  getAirtableService() {
-    return this.airtableService;
-  }
-
-  getCacheManager() {
-    return this.cacheManager;
   }
 }
 

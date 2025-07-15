@@ -1,14 +1,14 @@
-// config/wardrobeConfig.js - Core wardrobe configuration settings
+// config/wardrobeConfig.js - Updated to match your EXACT Airtable filter
 
 const WARDROBE_CONFIG = {
-  // Target active statuses for fuzzy matching
+  // Updated to match your exact Airtable active filter
   TARGET_ACTIVE_STATUSES: [
-    "active",
-    "in laundry",
-    "at cleaners",
-    "lent",
-    "borrowed",
-    "needs repair",
+    "active", // Matches "Active"
+    "ready to sell", // Matches "Ready_To_Sell"
+    "lent", // Matches "Lent"
+    "in laundry", // Matches "In_Laundry"
+    "at cleaners", // Matches "At_Cleaners"
+    "needs repair", // Matches "Needs_Repair"
   ],
 
   // Cache settings

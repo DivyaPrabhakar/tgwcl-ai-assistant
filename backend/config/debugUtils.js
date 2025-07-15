@@ -1,19 +1,20 @@
-// config/debugUtils.js - Debug and testing utilities
+// config/debugUtils.js - Clean debug and testing utilities
 
 const DEBUG_UTILS = {
   /**
    * Test field extractors on sample data
    * @param {Object} sampleItem - Sample item to test
-   * @param {Object} extractors - Field extractors to test
    * @param {string} category - Category name (optional)
    */
-  testFieldExtractors: (sampleItem, extractors, category = null) => {
+  testFieldExtractors: (sampleItem, category = null) => {
+    const FIELD_EXTRACTORS_MODULE = require("../services/fieldExtractors");
+
     console.log("\n=== FIELD EXTRACTOR TEST ===");
     console.log("Sample item:", JSON.stringify(sampleItem, null, 2));
 
-    if (category) {
-      console.log(`Testing category: ${category}`);
-    }
+    const extractors = category
+      ? FIELD_EXTRACTORS_MODULE.utils.getByCategory(category)
+      : FIELD_EXTRACTORS_MODULE.utils.getAllExtractors();
 
     const results = {};
 
@@ -40,10 +41,11 @@ const DEBUG_UTILS = {
   /**
    * Analyze data quality across records
    * @param {Array} records - Records to analyze
-   * @param {Object} extractors - Field extractors
    * @param {string} recordType - Type of records (for logging)
    */
-  analyzeDataQuality: (records, extractors, recordType = "items") => {
+  analyzeDataQuality: (records, recordType = "items") => {
+    const FIELD_EXTRACTORS_MODULE = require("../services/fieldExtractors");
+
     if (!Array.isArray(records) || records.length === 0) {
       console.warn("No records provided for data quality analysis");
       return {};
@@ -55,9 +57,10 @@ const DEBUG_UTILS = {
     console.log(`Total records: ${records.length}`);
 
     // Get coverage report
-    const coverage = DEBUG_UTILS.analyzeFieldCoverage(records, extractors);
+    const coverage =
+      FIELD_EXTRACTORS_MODULE.utils.analyzeFieldCoverage(records);
 
-    // Sort by coverage percentage
+    // Sort by missing percentage
     const sortedCoverage = Object.entries(coverage).sort(
       ([, a], [, b]) => b.percentage - a.percentage
     );
@@ -99,36 +102,6 @@ const DEBUG_UTILS = {
   },
 
   /**
-   * Analyze field coverage for extractors
-   * @param {Array} records - Records to analyze
-   * @param {Object} extractors - Field extractors
-   * @returns {Object} - Coverage statistics
-   */
-  analyzeFieldCoverage: (records, extractors) => {
-    const coverage = {};
-
-    for (const [extractorName, extractorFunc] of Object.entries(extractors)) {
-      if (typeof extractorFunc !== "function") continue;
-
-      const results = records.map((record) => extractorFunc(record));
-      const missingCount = results.filter(
-        (result) => typeof result === "string" && result.startsWith("cannot")
-      ).length;
-
-      coverage[extractorName] = {
-        total: records.length,
-        missing: missingCount,
-        found: records.length - missingCount,
-        percentage: Math.round(
-          ((records.length - missingCount) / records.length) * 100
-        ),
-      };
-    }
-
-    return coverage;
-  },
-
-  /**
    * Compare two records to see field differences
    * @param {Object} record1 - First record
    * @param {Object} record2 - Second record
@@ -163,56 +136,23 @@ const DEBUG_UTILS = {
   },
 
   /**
-   * Get configuration summary for debugging
-   * @param {Object} wardrobeConfig - Wardrobe configuration
-   * @returns {Object} - Configuration summary
+   * Get configuration summary
    */
-  getConfigSummary: (wardrobeConfig) => {
+  getConfigSummary: () => {
+    const WARDROBE_CONFIG = require("./wardrobeConfig");
+    const FIELD_EXTRACTORS_MODULE = require("../services/fieldExtractors");
+
     return {
-      app: wardrobeConfig.APP,
-      targetActiveStatuses: wardrobeConfig.TARGET_ACTIVE_STATUSES,
-      cacheConfig: wardrobeConfig.CACHE,
-      uiConfig: wardrobeConfig.UI,
-      analyticsConfig: wardrobeConfig.ANALYTICS,
-      validationRules: wardrobeConfig.VALIDATION,
+      targetActiveStatuses: WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES,
+      cacheConfig: WARDROBE_CONFIG.CACHE,
+      uiConfig: WARDROBE_CONFIG.UI,
+      analyticsConfig: WARDROBE_CONFIG.ANALYTICS,
+      availableExtractorCategories:
+        FIELD_EXTRACTORS_MODULE.utils.getCategories(),
+      totalExtractors: Object.keys(
+        FIELD_EXTRACTORS_MODULE.utils.getAllExtractors()
+      ).length,
     };
-  },
-
-  /**
-   * Test status operations with sample data
-   * @param {Array} sampleItems - Sample items
-   * @param {Object} statusUtils - Status utilities
-   * @param {Array} activeStatuses - Active statuses
-   */
-  testStatusOperations: (sampleItems, statusUtils, activeStatuses) => {
-    console.log("\n=== STATUS OPERATIONS TEST ===");
-
-    try {
-      // Test categorization
-      const categorized = statusUtils.categorizeByStatus(
-        sampleItems,
-        activeStatuses
-      );
-      console.log(
-        `✅ Categorization: ${categorized.active.length} active, ${categorized.inactive.length} inactive`
-      );
-
-      // Test breakdown
-      const breakdown = statusUtils.getStatusBreakdown(sampleItems);
-      console.log(
-        `✅ Breakdown: ${Object.keys(breakdown).length} unique statuses`
-      );
-
-      // Test health metrics
-      const health = statusUtils.getStatusHealth(sampleItems, activeStatuses);
-      console.log(`✅ Health: ${health.healthScore}% healthy`);
-
-      console.log("Status operations working correctly!");
-    } catch (error) {
-      console.error("❌ Status operations test failed:", error.message);
-    }
-
-    console.log("=== END TEST ===\n");
   },
 
   /**
@@ -312,6 +252,45 @@ const DEBUG_UTILS = {
       purchase_price: Math.floor(Math.random() * 200) + 20,
       color_value: i % 2 === 0 ? "blue" : "red",
     }));
+  },
+
+  /**
+   * Test all status operations with sample data
+   * @param {Array} sampleItems - Sample items
+   */
+  testStatusOperations: (sampleItems) => {
+    const STATUS_UTILS = require("./statusUtils");
+
+    console.log("\n=== STATUS OPERATIONS TEST ===");
+
+    try {
+      const activeStatuses = ["active", "in laundry", "needs repair"];
+
+      // Test categorization
+      const categorized = STATUS_UTILS.categorizeByStatus(
+        sampleItems,
+        activeStatuses
+      );
+      console.log(
+        `✅ Categorization: ${categorized.active.length} active, ${categorized.inactive.length} inactive`
+      );
+
+      // Test breakdown
+      const breakdown = STATUS_UTILS.getStatusBreakdown(sampleItems);
+      console.log(
+        `✅ Breakdown: ${Object.keys(breakdown).length} unique statuses`
+      );
+
+      // Test health metrics
+      const health = STATUS_UTILS.getStatusHealth(sampleItems, activeStatuses);
+      console.log(`✅ Health: ${health.healthScore}% healthy`);
+
+      console.log("Status operations working correctly!");
+    } catch (error) {
+      console.error("❌ Status operations test failed:", error.message);
+    }
+
+    console.log("=== END TEST ===\n");
   },
 };
 
