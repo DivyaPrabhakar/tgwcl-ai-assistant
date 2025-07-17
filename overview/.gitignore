@@ -1,4 +1,4 @@
-# Environment variables (MOST IMPORTANT)
+# Environment variables
 .env
 .env.local
 .env.development.local
@@ -7,12 +7,14 @@
 
 # Dependencies
 node_modules/
+package-lock.json
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
 # Cache and data files
 cached_data/
+backend/cached_data/
 *.cache
 
 # Build outputs

@@ -1,6 +1,6 @@
 // config/statusMatcher.js - Improved fuzzy matching for underscores and variations
 
-const WARDROBE_CONFIG = require("../config/wardrobeConfig");
+const WARDROBE_CONFIG = require("./wardrobeConfig");
 
 const STATUS_MATCHER = {
   /**
