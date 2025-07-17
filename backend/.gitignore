@@ -1,28 +1,34 @@
-# Environment variables (CRITICAL!)
+# Create a simple, working .gitignore
+cat > .gitignore << 'EOF'
+# Environment variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 
 # Dependencies
 node_modules/
 package-lock.json
 npm-debug.log*
+yarn-debug.log*
 
-# Cache and data files
+# Cache and data
 cached_data/
 *.cache
 
-# IDE/Editor files
+# Logs
+*.log
+logs/
+
+# IDE files
 .vscode/
 .idea/
 *.swp
-*.swo
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Logs
-*.log
+# Temporary files
+tmp/
+temp/
+*.backup
+EOF
