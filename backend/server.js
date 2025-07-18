@@ -40,7 +40,16 @@ const PORT = config.port;
 console.log("✅ Express app created");
 
 // Middleware
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000", // Local development
+      "https://tgwcl-digital-closet.netlify.app", // Your Netlify domain
+      "https://thegirlwhocriedlook.com", // If you have a custom domain
+    ],
+    credentials: true,
+  })
+);
 app.use(express.json());
 console.log("✅ Middleware configured");
 
@@ -48,6 +57,11 @@ console.log("✅ Middleware configured");
 const wardrobeService = new WardrobeService();
 const aiService = new AIService();
 console.log("✅ Services initialized");
+
+// Add this to server.js
+app.get("/", (req, res) => {
+  res.redirect("/api/health");
+});
 
 // Setup routes
 const apiRoutes = createRoutes(wardrobeService, aiService);
