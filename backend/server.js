@@ -44,12 +44,19 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000", // Local development
-      "https://tgwcl-digital-closet.netlify.app", // Your Netlify domain
-      "https://thegirlwhocriedlook.com", // If you have a custom domain
+      "http://localhost:3001", // Local backend testing
+      "https://tgwcl-digital-closet.netlify.app", // Your actual Netlify domain
+      "https://thegirlwhocriedlook.com", // Custom domain if you have one
+      // Add more Netlify URLs in case of deployment previews
+      /^https:\/\/.*\.netlify\.app$/,
+      /^https:\/\/deploy-preview-.*--tgwcl-digital-closet\.netlify\.app$/,
     ],
     credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
+
 app.use(express.json());
 console.log("✅ Middleware configured");
 

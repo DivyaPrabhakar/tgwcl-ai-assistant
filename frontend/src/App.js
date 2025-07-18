@@ -17,9 +17,10 @@ import { ChatPage } from "./pages/ChatPage";
 
 // API Configuration
 export const API_BASE_URL =
-  process.env.NODE_ENV === "development"
+  process.env.REACT_APP_API_URL ||
+  (process.env.NODE_ENV === "development"
     ? "http://localhost:3001"
-    : "https://your-backend-url.railway.app"; // Replace with your actual Railway URL
+    : "https://tgwcl-ai-assistant-production.up.railway.app");
 
 // Main App Component
 function App() {
