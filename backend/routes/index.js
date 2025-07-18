@@ -36,13 +36,13 @@ function createRoutes(wardrobeService, aiService) {
   router.use("/", healthRoutes(wardrobeService));
 
   // Status management routes
-  router.use("/wardrobe", statusRoutes(wardrobeService));
+  router.use("/status", statusRoutes(wardrobeService));
 
   // Core wardrobe data routes
   router.use("/wardrobe", wardrobeRoutes(wardrobeService));
 
   // Analytics routes
-  router.use("/wardrobe", analyticsRoutes(wardrobeService));
+  router.use("/analytics", analyticsRoutes(wardrobeService));
 
   // Debug routes
   router.use("/debug", debugRoutes(wardrobeService));
