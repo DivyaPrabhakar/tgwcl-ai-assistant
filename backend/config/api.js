@@ -55,22 +55,12 @@ export const diagnosAPI = async () => {
   const baseUrl = API_CONFIG.getBaseUrl();
   const healthUrl = API_CONFIG.buildUrl(API_CONFIG.ENDPOINTS.HEALTH);
 
-  console.log("🔍 API Diagnostics:");
-  console.log("- Environment:", process.env.NODE_ENV);
-  console.log("- Base URL:", baseUrl);
-  console.log("- Health URL:", healthUrl);
-  console.log("- Is Development:", API_CONFIG.isDevelopment());
-  console.log("- Window Location:", window.location.href);
 
   try {
-    console.log("🏥 Testing health endpoint...");
     const response = await fetch(healthUrl);
-    console.log("📡 Health Response Status:", response.status);
-    console.log("📡 Health Response Headers:", [...response.headers.entries()]);
 
     if (response.ok) {
       const data = await response.json();
-      console.log("✅ Health Check Successful:", data);
       return { success: true, data };
     } else {
       const text = await response.text();

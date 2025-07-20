@@ -72,7 +72,6 @@ export const useWardrobeAPI = () => {
       }
 
       const data = await response.json();
-      console.log("✅ API call successful");
       return data;
     } catch (err) {
       console.error("❌ API call failed:", err.message);
@@ -114,7 +113,6 @@ export const useDashboardData = () => {
         try {
           console.log("🏥 Testing API health...");
           await apiCall("/api/health");
-          console.log("✅ API health check passed");
         } catch (healthError) {
           console.error("❌ API health check failed:", healthError.message);
           throw new Error(`API server not responding: ${healthError.message}`);
@@ -146,7 +144,6 @@ export const useDashboardData = () => {
             }),
           ]);
 
-        console.log("✅ All dashboard data fetched successfully");
 
         setData({
           analytics: analyticsRes,

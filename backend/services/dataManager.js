@@ -333,11 +333,7 @@ class DataManager {
   // === LOGGING ===
 
   log(message, data = null) {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    console.log(`[${timestamp}] DataManager: ${message}`);
-    if (data) {
-      console.log("  📊", data);
-    }
+    // Logging removed
   }
 
   logError(message, error = null) {

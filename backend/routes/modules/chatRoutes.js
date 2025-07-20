@@ -64,7 +64,6 @@ module.exports = (wardrobeService, aiService) => {
         wardrobeData
       );
 
-      console.log("✅ AI response generated successfully");
       console.log("💬 === CHAT REQUEST END ===");
 
       res.json({

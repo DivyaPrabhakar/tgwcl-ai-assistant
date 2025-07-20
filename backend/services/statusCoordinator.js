@@ -88,40 +88,13 @@ class StatusCoordinator {
   }
 
   testStatusOperations(sampleItems) {
-    console.log("\n=== COMPREHENSIVE STATUS TEST ===");
-
-    try {
-      // Test configuration
-      const configStats = this.config.getStats();
-      console.log(
-        `✅ Configuration: ${configStats.counts.totalStatuses} statuses`
-      );
-
-      // Test operations
-      this.operations.testOperations(sampleItems);
-
-      // Test analyzer
-      this.analyzer.testAnalyzer(sampleItems);
-
-      // Test comprehensive processing
-      const processed = this.processItems(sampleItems);
-      console.log(
-        `✅ Comprehensive: ${processed.summary.totalItems} items processed`
-      );
-
-      console.log("✅ All status modules working correctly!");
-    } catch (error) {
-      console.error("❌ Status test failed:", error.message);
-    }
-
-    console.log("=== END TEST ===\n");
+    // Test logging removed
   }
 
   // === LOGGING ===
 
   log(message) {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    console.log(`[${timestamp}] StatusCoordinator: ${message}`);
+    // Logging removed
   }
 }
 

@@ -191,28 +191,7 @@ class StatusConfiguration {
    * @param {Array} sampleStatuses - Statuses to test
    */
   debugMatching(sampleStatuses) {
-    console.log("\n=== STATUS MATCHING DEBUG ===");
-
-    const targetStatuses = WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES;
-    console.log("Target patterns:", targetStatuses);
-    console.log("Sample statuses:", sampleStatuses);
-    console.log("");
-
-    sampleStatuses.forEach((status) => {
-      const match = STATUS_MATCHER.findBestMatch(status, targetStatuses, 0.5);
-
-      if (match) {
-        console.log(
-          `✅ "${status}" → "${match.target}" (${(match.score * 100).toFixed(
-            0
-          )}%)`
-        );
-      } else {
-        console.log(`❌ "${status}" → No match found`);
-      }
-    });
-
-    console.log("=== END DEBUG ===\n");
+    // Debug logging removed
   }
 
   /**
@@ -249,9 +228,7 @@ class StatusConfiguration {
   // === LOGGING ===
 
   log(message, data = null) {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    console.log(`[${timestamp}] StatusConfig: ${message}`);
-    if (data) console.log("  📊", data);
+    // Logging removed
   }
 
   logError(message, error = null) {

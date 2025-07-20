@@ -46,29 +46,7 @@ const config = {
 
   // Log configuration status
   logStatus() {
-    console.log("📋 Environment check:");
-    console.log("- NODE_ENV:", this.nodeEnv);
-    console.log("- PORT:", this.port);
-    console.log(
-      "- AIRTABLE_API_KEY:",
-      this.airtable.apiKey ? "✅ Set" : "❌ Missing"
-    );
-    console.log(
-      "- AIRTABLE_CLOSET_BASE_ID:",
-      this.airtable.closetBaseId ? "✅ Set" : "❌ Missing"
-    );
-    console.log(
-      "- AIRTABLE_REFERENCES_BASE_ID:",
-      this.airtable.referencesBaseId ? "✅ Set" : "❌ Missing"
-    );
-    console.log(
-      "- AIRTABLE_FINISHED_BASE_ID:",
-      this.airtable.finishedBaseId ? "✅ Set" : "❌ Missing"
-    );
-    console.log(
-      "- OPENAI_API_KEY:",
-      this.openai.apiKey ? "✅ Set" : "❌ Missing"
-    );
+    // Logging removed
   },
 };
 

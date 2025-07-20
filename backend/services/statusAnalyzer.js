@@ -337,37 +337,13 @@ class StatusAnalyzer {
    * @param {Array} sampleItems - Sample items
    */
   testAnalyzer(sampleItems) {
-    console.log("\n=== STATUS ANALYZER TEST ===");
-
-    try {
-      const breakdown = this.getStatusBreakdown(sampleItems);
-      console.log(`✅ Breakdown: ${Object.keys(breakdown).length} statuses`);
-
-      const patterns = this.analyzePatterns(sampleItems);
-      console.log(`✅ Patterns: ${patterns.activePercentage}% active`);
-
-      const needingReview = this.getItemsNeedingReview(sampleItems);
-      console.log(`✅ Review: ${needingReview.length} items flagged`);
-
-      const report = this.generateReport(sampleItems);
-      console.log(
-        `✅ Report: ${report.recommendations.length} recommendations`
-      );
-
-      console.log("Status analyzer working correctly!");
-    } catch (error) {
-      console.error("❌ Analyzer test failed:", error.message);
-    }
-
-    console.log("=== END TEST ===\n");
+    // Test logging removed
   }
 
   // === LOGGING ===
 
   log(message, data = null) {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    console.log(`[${timestamp}] StatusAnalyzer: ${message}`);
-    if (data) console.log("  📊", data);
+    // Logging removed
   }
 }
 

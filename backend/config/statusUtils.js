@@ -169,7 +169,6 @@ This ensures comprehensive tracking of your wardrobe including temporarily unava
     }
 
     if (issues.length === 0) {
-      console.log("✅ Status configuration is valid");
     } else {
       console.warn("⚠️ Status configuration issues:", issues);
     }

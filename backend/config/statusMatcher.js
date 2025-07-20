@@ -19,20 +19,15 @@ const STATUS_MATCHER = {
     const s1 = normalize(str1);
     const s2 = normalize(str2);
 
-    console.log(
-      `🔍 Comparing: "${str1}" (normalized: "${s1}") vs "${str2}" (normalized: "${s2}")`
-    );
 
     // Exact match after normalization
     if (s1 === s2) {
-      console.log(`   ✅ Exact match: 100%`);
       return 1.0;
     }
 
     // Contains match - either direction
     if (s1.includes(s2) || s2.includes(s1)) {
       const score = 0.9;
-      console.log(`   ✅ Contains match: ${Math.round(score * 100)}%`);
       return score;
     }
 
@@ -44,11 +39,6 @@ const STATUS_MATCHER = {
     if (commonWords.length > 0) {
       const score =
         0.8 * (commonWords.length / Math.max(words1.length, words2.length));
-      console.log(
-        `   ✅ Word overlap: ${commonWords.join(", ")} → ${Math.round(
-          score * 100
-        )}%`
-      );
       return score;
     }
 
@@ -59,11 +49,6 @@ const STATUS_MATCHER = {
           // Check if one word starts with the other
           if (word1.startsWith(word2) || word2.startsWith(word1)) {
             const score = 0.7;
-            console.log(
-              `   ✅ Partial word match: "${word1}" ↔ "${word2}" → ${Math.round(
-                score * 100
-              )}%`
-            );
             return score;
           }
 
@@ -72,11 +57,6 @@ const STATUS_MATCHER = {
           const maxLength = Math.max(word1.length, word2.length);
           if (editDistance <= 2 && maxLength > 3) {
             const score = 0.6 * (1 - editDistance / maxLength);
-            console.log(
-              `   ✅ Similar words: "${word1}" ↔ "${word2}" (edit distance: ${editDistance}) → ${Math.round(
-                score * 100
-              )}%`
-            );
             return score;
           }
         }
@@ -91,7 +71,6 @@ const STATUS_MATCHER = {
     }
 
     const charScore = (matches / Math.max(s1.length, s2.length)) * 0.3;
-    console.log(`   ❌ Low similarity: ${Math.round(charScore * 100)}%`);
     return charScore;
   },
 
@@ -133,7 +112,6 @@ const STATUS_MATCHER = {
     let bestMatch = null;
     let bestScore = 0;
 
-    console.log(`\n🎯 Finding match for: "${actualStatus}"`);
 
     for (const target of targetStatuses) {
       const score = STATUS_MATCHER.calculateSimilarity(actualStatus, target);
@@ -144,15 +122,7 @@ const STATUS_MATCHER = {
     }
 
     if (bestMatch) {
-      console.log(
-        `   🏆 Best match: "${bestMatch.target}" (${Math.round(
-          bestMatch.score * 100
-        )}%)`
-      );
     } else {
-      console.log(
-        `   ❌ No match found above ${Math.round(threshold * 100)}% threshold`
-      );
     }
 
     return bestMatch;
@@ -165,10 +135,6 @@ const STATUS_MATCHER = {
     const activeMatches = [];
     const targetStatuses = WARDROBE_CONFIG.TARGET_ACTIVE_STATUSES;
 
-    console.log("\n🔍 STATUS MATCHING PROCESS:");
-    console.log("📝 Input statuses:", allActualStatuses);
-    console.log("🎯 Target patterns:", targetStatuses);
-    console.log("=".repeat(60));
 
     for (const actualStatus of allActualStatuses) {
       const match = STATUS_MATCHER.findBestMatch(
@@ -183,13 +149,7 @@ const STATUS_MATCHER = {
           target: match.target,
           score: match.score,
         });
-        console.log(
-          `✅ ACTIVE: "${actualStatus}" → "${match.target}" (${Math.round(
-            match.score * 100
-          )}%)`
-        );
       } else {
-        console.log(`❌ INACTIVE: "${actualStatus}" (no match)`);
       }
     }
 
@@ -198,16 +158,6 @@ const STATUS_MATCHER = {
       (s) => !activeStatuses.includes(s)
     );
 
-    console.log("\n🎯 FINAL RESULTS:");
-    console.log(
-      `   ✅ Active (${activeStatuses.length}): ${activeStatuses.join(", ")}`
-    );
-    console.log(
-      `   ❌ Inactive (${unmatchedStatuses.length}): ${unmatchedStatuses.join(
-        ", "
-      )}`
-    );
-    console.log("=".repeat(60));
 
     return {
       activeStatuses,

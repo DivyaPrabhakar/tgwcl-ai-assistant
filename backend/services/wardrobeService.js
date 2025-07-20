@@ -10,7 +10,6 @@ const DataManager = require("./dataManager");
 class WardrobeService {
   constructor() {
     this.initializeServices();
-    console.log("✅ WardrobeService initialized with refactored architecture");
   }
 
   // === INITIALIZATION ===
@@ -49,17 +48,7 @@ class WardrobeService {
   }
 
   logInitializationResults(totalCachedRecords) {
-    if (totalCachedRecords === 0) {
-      console.log("📭 No cached data found. Server ready for API requests.");
-    } else {
-      console.log("📚 Using cached data. Server ready!");
-      console.log(
-        `🏷️ ${this.statusManager.getAllStatuses().length} unique statuses`
-      );
-      console.log(
-        `✅ ${this.statusManager.getActiveStatuses().length} active statuses`
-      );
-    }
+    // Logging removed
   }
 
   // === DATA OPERATIONS (DELEGATED TO DATA MANAGER) ===

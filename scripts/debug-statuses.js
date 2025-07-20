@@ -38,7 +38,6 @@ async function debugStatusMatching() {
   });
 
   // Test fuzzy matching
-  console.log(`\n🔄 Testing fuzzy matching:`);
   const STATUS_MATCHER = require("./config/statusMatcher");
   const matchingResult = STATUS_MATCHER.determineActiveStatuses(allStatuses);
 
@@ -52,7 +51,6 @@ async function debugStatusMatching() {
     console.log(`   ${index + 1}. "${status}" → "${target}" (${score}%)`);
   });
 
-  console.log(`\n❌ NOT matched (${matchingResult.unmatchedStatuses.length}):`);
   matchingResult.unmatchedStatuses.forEach((status, index) => {
     console.log(`   ${index + 1}. "${status}"`);
   });
@@ -83,7 +81,6 @@ async function debugStatusMatching() {
 
   console.log(`\n📊 SUMMARY:`);
   console.log(`   Total items: ${allItems.length}`);
-  console.log(`   Active items (fuzzy matched): ${activeItemCount}`);
   console.log(`   Expected active (from Airtable filter): 758`);
   console.log(`   UI showing: 4308`);
 

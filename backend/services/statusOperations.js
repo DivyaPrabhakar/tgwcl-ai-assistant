@@ -302,52 +302,13 @@ class StatusOperations {
    * @param {Array} sampleItems - Sample items for testing
    */
   testOperations(sampleItems) {
-    console.log("\n=== STATUS OPERATIONS TEST ===");
-
-    try {
-      // Test categorization
-      const categorized = this.categorizeItems(sampleItems);
-      console.log(
-        `✅ Categorization: ${categorized.active.length} active, ${categorized.inactive.length} inactive`
-      );
-
-      // Test filtering
-      const activeStatuses = this.statusConfig.getActiveStatuses();
-      if (activeStatuses.length > 0) {
-        const filtered = this.filterByStatuses(sampleItems, [
-          activeStatuses[0],
-        ]);
-        console.log(
-          `✅ Filtering by '${activeStatuses[0]}': ${filtered.length} items`
-        );
-      }
-
-      // Test grouping
-      const grouped = this.groupByStatus(sampleItems);
-      console.log(`✅ Grouping: ${Object.keys(grouped).length} status groups`);
-
-      // Test validation
-      const validation = this.validateItemStatuses(sampleItems);
-      console.log(`✅ Validation: ${validation.valid.length} valid items`);
-
-      // Test summary
-      const summary = this.getSummary(sampleItems);
-      console.log(`✅ Summary: ${summary.uniqueStatuses} unique statuses`);
-
-      console.log("All status operations working correctly!");
-    } catch (error) {
-      console.error("❌ Status operations test failed:", error.message);
-    }
-
-    console.log("=== END TEST ===\n");
+    // Test logging removed
   }
 
   // === LOGGING ===
 
   log(message, data = null) {
-    const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
-    console.log(`[${timestamp}] StatusOperations: ${message}`);
-    if (data) console.log("  📊", data);
+    // Logging removed
   }
 }
 

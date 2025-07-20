@@ -71,14 +71,6 @@ class AnalyticsService {
         statusConfig: statusConfig,
       };
 
-      console.log("✅ Analytics completed:", {
-        totalActiveItems: analytics.totalActiveItems,
-        totalItems: analytics.totalItems,
-        statusCount: Object.keys(analytics.statusBreakdown).length,
-        seasonalTrends: Object.keys(analytics.seasonalTrends).length,
-        activeStatusesUsed: activeStatuses.length,
-      });
-
       return analytics;
     } catch (error) {
       console.error("❌ Error in analyzeUsagePatterns:", error);
@@ -163,13 +155,6 @@ class AnalyticsService {
         // Status configuration used
         statusConfig: statusConfig,
       };
-
-      console.log("✅ Cost analysis completed:", {
-        totalInvestment: costAnalysis.totalInvestment,
-        activeInvestment: costAnalysis.activeInvestment,
-        bestValueItems: costAnalysis.bestValueItems.length,
-        activeStatusesUsed: activeStatuses.length,
-      });
 
       return costAnalysis;
     } catch (error) {

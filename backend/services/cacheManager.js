@@ -24,7 +24,6 @@ class CacheManager {
   async ensureDataDir() {
     try {
       await fs.mkdir(this.dataDir, { recursive: true });
-      console.log("✅ Data directory ensured");
     } catch (error) {
       console.error("❌ Error creating data directory:", error);
     }
@@ -74,7 +73,6 @@ class CacheManager {
   }
 
   async loadAllCachedData() {
-    console.log("📂 Loading cached data from files...");
     for (const key of Object.keys(this.cache)) {
       this.cache[key] = await this.loadFromFile(key);
     }
@@ -86,7 +84,6 @@ class CacheManager {
       0
     );
 
-    console.log(`📊 Total cached records: ${totalCachedRecords}`);
     return totalCachedRecords;
   }
 

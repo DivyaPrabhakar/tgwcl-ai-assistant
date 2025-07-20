@@ -10,7 +10,6 @@ class AIService {
       this.openai = new OpenAI({
         apiKey: config.openai.apiKey,
       });
-      console.log("✅ OpenAI service initialized");
     } else {
       console.log(
         "⚠️ OpenAI API key not provided - AI responses will be disabled"
@@ -44,7 +43,6 @@ class AIService {
       });
 
       const response = completion.choices[0].message.content;
-      console.log("✅ AI response generated successfully");
       return response;
     } catch (error) {
       console.error("❌ OpenAI API error:", error);
